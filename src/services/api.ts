@@ -11,10 +11,16 @@ import type {
 
 import { mockPriceSummary, mockMarkets, mockEvents } from '../data/mock'
 
-// Mode simulasi atau backend asli
+// ========================================
+// MODE SIMULASI ATAU BACKEND ASLI
+// ========================================
+
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
-// Alamat backend MURAH
+// ========================================
+// ALAMAT BACKEND MURAH
+// ========================================
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
   headers: {
@@ -49,6 +55,10 @@ export async function getPriceSummary(): Promise<PriceSummary> {
   return response.data.data
 }
 
+// ========================================
+// PETA DAN PASAR TERDEKAT
+// ========================================
+
 // GET /markets/nearby?lat&lon&limit
 export async function getNearbyMarkets(params: NearbyMarketParams): Promise<Market[]> {
   if (USE_MOCK) {
@@ -69,10 +79,16 @@ export async function getNearbyMarkets(params: NearbyMarketParams): Promise<Mark
     return markets
   }
 
-  const response = await api.get<ApiResponse<Market[]>>('/markets/nearby', { params })
+  const response = await api.get<ApiResponse<Market[]>>('/markets/nearby', {
+    params,
+  })
 
   return response.data.data
 }
+
+// ========================================
+// JADWAL KEGIATAN PASAR MURAH
+// ========================================
 
 // GET /events?range&status&lat&lon&radius&limit
 export async function getEvents(
@@ -99,7 +115,9 @@ export async function getEvents(
     return events
   }
 
-  const response = await api.get<ApiResponse<MarketEvent[]>>('/events', { params })
+  const response = await api.get<ApiResponse<MarketEvent[]>>('/events', {
+    params,
+  })
 
   return response.data.data
 }
@@ -122,7 +140,9 @@ export async function getCommodityDetail(id: string) {
 
 // GET /commodities/:id/history?days=7|30
 export async function getCommodityHistory(id: string, days: 7 | 30 = 7) {
-  const response = await api.get(`/commodities/${id}/history`, { params: { days } })
+  const response = await api.get(`/commodities/${id}/history`, {
+    params: { days },
+  })
 
   return response.data.data
 }
@@ -137,13 +157,15 @@ export async function getCommodityMarkets(
     limit?: number
   }
 ) {
-  const response = await api.get(`/commodities/${id}/markets`, { params })
+  const response = await api.get(`/commodities/${id}/markets`, {
+    params,
+  })
 
   return response.data.data
 }
 
 // ========================================
-// PASAR
+// DETAIL PASAR
 // ========================================
 
 // GET /markets/:id
@@ -158,7 +180,20 @@ export async function getMarketDetail(id: string) {
 
 // POST /reports
 export async function submitReport(data: CreateReport) {
+  if (USE_MOCK) {
+    return {
+      success: true,
+      mock: true,
+      data: {
+        ...data,
+        id: `report-${Date.now()}`,
+        status: 'PENDING',
+      },
+    }
+  }
+
   const response = await api.post('/reports', data)
+
   return response.data
 }
 
@@ -171,5 +206,9 @@ export async function checkBackend() {
   const response = await api.get('/health')
   return response.data
 }
+
+// ========================================
+// EXPORT AXIOS INSTANCE
+// ========================================
 
 export default api
