@@ -1,6 +1,10 @@
+
 import type { PriceSummary, Market, MarketEvent } from '../types/api'
 
-// Data simulasi harga sembako
+// ========================================
+// DATA SIMULASI HARGA SEMBAKO
+// ========================================
+
 export const mockPriceSummary: PriceSummary = {
   updatedAt: new Date().toISOString(),
 
@@ -107,54 +111,88 @@ export const mockPriceSummary: PriceSummary = {
   topFallers: [],
 }
 
-// Pasar simulasi
+// ========================================
+// DATA SIMULASI PASAR
+// ========================================
+
 export const mockMarkets: Market[] = [
   {
-    id: 'market-001',
+    id: 1,
     name: 'Pasar Tradisional Bandung',
     type: 'TRADITIONAL',
-    address: 'Bandung, Jawa Barat',
-    lat: -6.9147,
-    lon: 107.6098,
+    address: 'Jl. Contoh No. 1, Bandung',
+    latitude: -6.9147,
+    longitude: 107.6098,
     distanceKm: 1.2,
-    openHours: '06.00–15.00',
+    openHours: '05:00-14:00',
     isOpenNow: true,
-    topPrices: [],
+    topPrices: [
+      {
+        commodityId: 1,
+        name: 'Beras Medium',
+        unit: 'kg',
+        price: 13800,
+        source: 'SEED',
+      },
+    ],
   },
   {
-    id: 'market-002',
+    id: 2,
     name: 'Pasar Murah Sejahtera',
     type: 'CHEAP_MARKET',
-    address: 'Bandung, Jawa Barat',
-    lat: -6.92,
-    lon: 107.61,
+    address: 'Jl. Contoh No. 2, Bandung',
+    latitude: -6.92,
+    longitude: 107.61,
     distanceKm: 2.4,
-    openHours: '08.00–14.00',
+    openHours: '08:00-14:00',
+    isOpenNow: true,
+    topPrices: [
+      {
+        commodityId: 1,
+        name: 'Beras Medium',
+        unit: 'kg',
+        price: 13500,
+        source: 'SEED',
+      },
+    ],
+  },
+  {
+    id: 3,
+    name: 'Toko Sembako Makmur',
+    type: 'STORE',
+    address: 'Jl. Contoh No. 3, Bandung',
+    latitude: -6.91,
+    longitude: 107.62,
+    distanceKm: 3.1,
+    openHours: '07:00-21:00',
     isOpenNow: true,
     topPrices: [],
   },
   {
-    id: 'market-003',
-    name: 'Toko Sembako Makmur',
-    type: 'STORE',
-    address: 'Bandung, Jawa Barat',
-    lat: -6.91,
-    lon: 107.62,
-    distanceKm: 3.1,
-    openHours: '07.00–21.00',
+    id: 4,
+    name: 'Supermarket Hemat',
+    type: 'SUPERMARKET',
+    address: 'Jl. Contoh No. 4, Bandung',
+    latitude: -6.93,
+    longitude: 107.62,
+    distanceKm: 4.2,
+    openHours: '09:00-22:00',
     isOpenNow: true,
     topPrices: [],
   },
 ]
 
-// Kegiatan pasar murah simulasi
+// ========================================
+// DATA SIMULASI KEGIATAN PASAR MURAH
+// ========================================
+
 export const mockEvents: MarketEvent[] = [
   {
     id: 'event-001',
     title: 'Operasi Pasar Murah Bandung',
     organizer: 'Dinas Perdagangan',
     date: '2026-11-10',
-    time: '08.00–12.00',
+    time: '08:00-12:00',
     location: 'Lapangan Gasibu, Bandung',
     distanceKm: 2.5,
     status: 'UPCOMING',

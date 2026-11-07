@@ -1,5 +1,10 @@
+
 // ========================================
 // MURAH API CONTRACT - TYPESCRIPT TYPES
+// ========================================
+
+// ========================================
+// RESPONSE UMUM
 // ========================================
 
 export interface ApiResponse<T> {
@@ -8,13 +13,18 @@ export interface ApiResponse<T> {
   meta?: Record<string, unknown>
 }
 
-// Sumber data harga
+// ========================================
+// SUMBER DATA DAN TREN HARGA
+// ========================================
+
 export type PriceSource = 'PIHPS' | 'SEED' | 'CITIZEN'
 
-// Tren harga
 export type PriceTrend = 'UP' | 'DOWN' | 'STABLE'
 
-// Data satu komoditas
+// ========================================
+// DATA KOMODITAS
+// ========================================
+
 export interface PriceItem {
   commodityId: string
   name: string
@@ -29,7 +39,10 @@ export interface PriceItem {
   date: string
 }
 
-// Ringkasan harga untuk halaman Beranda
+// ========================================
+// RINGKASAN HARGA BERANDA
+// ========================================
+
 export interface PriceSummary {
   updatedAt: string
   items: PriceItem[]
@@ -37,27 +50,45 @@ export interface PriceSummary {
   topFallers: PriceItem[]
 }
 
-// Jenis pasar
-export type MarketType = 'TRADITIONAL' | 'CHEAP_MARKET' | 'STORE' | 'SUPERMARKET'
+// ========================================
+// DATA PASAR
+// ========================================
 
-// Data pasar
+export type MarketType =
+  | 'TRADITIONAL'
+  | 'CHEAP_MARKET'
+  | 'STORE'
+  | 'SUPERMARKET'
+
+// Harga komoditas pada popup Peta
+export interface NearbyMarketPrice {
+  commodityId: number
+  name: string
+  unit: string
+  price: number
+  source: PriceSource
+}
+
+// Data pasar dari GET /markets/nearby
 export interface Market {
-  id: string
+  id: number
   name: string
   type: MarketType
   address: string
-  lat: number
-  lon: number
+  latitude: number
+  longitude: number
   distanceKm: number
-  openHours?: string | null
-  isOpenNow?: boolean
-  topPrices?: PriceItem[]
+  openHours: string | null
+  isOpenNow: boolean | null
+  topPrices: NearbyMarketPrice[]
 }
 
-// Status kegiatan pasar murah
+// ========================================
+// STATUS DAN DATA KEGIATAN PASAR MURAH
+// ========================================
+
 export type EventStatus = 'ONGOING' | 'UPCOMING' | 'ENDED'
 
-// Data kegiatan
 export interface MarketEvent {
   id: string
   title: string
@@ -69,14 +100,20 @@ export interface MarketEvent {
   status: EventStatus
 }
 
-// Data laporan harga
+// ========================================
+// LAPORAN HARGA
+// ========================================
+
 export interface CreateReport {
   marketId: string
   commodityId: string
   price: number
 }
 
-// Parameter pencarian pasar
+// ========================================
+// PARAMETER PENCARIAN PASAR TERDEKAT
+// ========================================
+
 export interface NearbyMarketParams {
   lat: number
   lon: number

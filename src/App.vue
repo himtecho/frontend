@@ -1,7 +1,12 @@
+
 <script setup lang="ts">
-import HomeView from './views/HomeView.vue'
+import { RouterView } from 'vue-router'
+import BottomNav from './components/BottomNav.vue'
 </script>
 
 <template>
-  <HomeView />
+  <div class="app-container">
+    <RouterView />
+    <BottomNav />
+  </div>
 </template>
