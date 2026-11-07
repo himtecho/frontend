@@ -1,4 +1,3 @@
-
 // ========================================
 // MURAH API CONTRACT - TYPESCRIPT TYPES
 // ========================================
@@ -54,11 +53,7 @@ export interface PriceSummary {
 // DATA PASAR
 // ========================================
 
-export type MarketType =
-  | 'TRADITIONAL'
-  | 'CHEAP_MARKET'
-  | 'STORE'
-  | 'SUPERMARKET'
+export type MarketType = 'TRADITIONAL' | 'CHEAP_MARKET' | 'STORE' | 'SUPERMARKET'
 
 export interface NearbyMarketPrice {
   commodityId: number
