@@ -1,4 +1,3 @@
-
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { getCommodities, getCommodityMarkets, isApiError } from '../services/api'
@@ -35,8 +34,7 @@ const selectedCommodity = computed(
   () => commodities.value.find((c) => c.id === selectedId.value) ?? null
 )
 
-const distOf = (item: CommodityMarketItem) =>
-  item.market.distanceKm ?? Number.POSITIVE_INFINITY
+const distOf = (item: CommodityMarketItem) => item.market.distanceKm ?? Number.POSITIVE_INFINITY
 
 const byPrice = (a: CommodityMarketItem, b: CommodityMarketItem) =>
   a.price - b.price || distOf(a) - distOf(b)
@@ -137,9 +135,7 @@ async function init() {
     commodities.value = await getCommodities()
     selectedId.value = commodities.value[0]?.id ?? null
   } catch (error) {
-    errorMessage.value = isApiError(error)
-      ? error.message
-      : 'Gagal memuat daftar bahan pokok.'
+    errorMessage.value = isApiError(error) ? error.message : 'Gagal memuat daftar bahan pokok.'
   } finally {
     initializing.value = false
   }
@@ -156,9 +152,7 @@ onMounted(init)
         <div class="header-copy">
           <span class="eyebrow">INFORMASI HARGA PANGAN</span>
           <h1>Temukan Harga Terbaik di Sekitarmu</h1>
-          <p>
-            Bandingkan harga bahan pokok di pasar dan toko sekitar agar belanja lebih hemat.
-          </p>
+          <p>Bandingkan harga bahan pokok di pasar dan toko sekitar agar belanja lebih hemat.</p>
         </div>
 
         <div class="header-symbol" aria-hidden="true">
@@ -202,9 +196,7 @@ onMounted(init)
           </button>
         </div>
 
-        <div v-else-if="initializing" class="loading-copy">
-          Memuat daftar bahan pokok...
-        </div>
+        <div v-else-if="initializing" class="loading-copy">Memuat daftar bahan pokok...</div>
         <div v-else-if="!errorMessage" class="empty-copy">
           Belum ada pilihan bahan pokok yang tersedia.
         </div>
@@ -259,9 +251,7 @@ onMounted(init)
           />
           <circle cx="10" cy="8" r="2" stroke="currentColor" stroke-width="1.5" />
         </svg>
-        <span>
-          Menggunakan pusat Kota Bandung karena lokasi perangkat belum tersedia.
-        </span>
+        <span> Menggunakan pusat Kota Bandung karena lokasi perangkat belum tersedia. </span>
       </div>
 
       <section v-if="result && selectedCommodity" class="reference-strip">
@@ -329,14 +319,10 @@ onMounted(init)
           </div>
           <h3>Belum ada lokasi ditemukan</h3>
           <p>
-            Belum ada data {{ selectedCommodity?.name ?? 'komoditas' }}
-            dalam radius {{ radius }} km. Coba perluas jarak pencarian.
+            Belum ada data {{ selectedCommodity?.name ?? 'komoditas' }} dalam radius
+            {{ radius }} km. Coba perluas jarak pencarian.
           </p>
-          <button
-            v-if="!usingDefaultLocation"
-            class="retry-button"
-            @click="useCityCenter"
-          >
+          <button v-if="!usingDefaultLocation" class="retry-button" @click="useCityCenter">
             Gunakan pusat Kota Bandung
           </button>
         </div>
@@ -355,9 +341,7 @@ onMounted(init)
             <div class="market-details">
               <div class="market-overline">
                 <span class="market-type">{{ TYPE_LABEL[item.market.type] }}</span>
-                <span v-if="item.market.id === cheapestId" class="cheapest-label">
-                  TERMURAH
-                </span>
+                <span v-if="item.market.id === cheapestId" class="cheapest-label"> TERMURAH </span>
               </div>
 
               <h3>{{ item.market.name }}</h3>
@@ -402,8 +386,8 @@ onMounted(init)
         </ol>
 
         <p v-if="result && sortedItems.length > 0" class="results-footnote">
-          Harga berlabel “Estimasi” merupakan perkiraan dari harga acuan kota,
-          bukan harga yang diperiksa langsung di lokasi.
+          Harga berlabel “Estimasi” merupakan perkiraan dari harga acuan kota, bukan harga yang
+          diperiksa langsung di lokasi.
         </p>
       </section>
     </div>
