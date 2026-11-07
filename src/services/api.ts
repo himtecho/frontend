@@ -1,4 +1,3 @@
-
 import axios from 'axios'
 
 import type {
@@ -7,27 +6,21 @@ import type {
   Market,
   MarketEvent,
   NearbyMarketParams,
-  CreateReport
+  CreateReport,
 } from '../types/api'
 
-import {
-  mockPriceSummary,
-  mockMarkets,
-  mockEvents
-} from '../data/mock'
+import { mockPriceSummary, mockMarkets, mockEvents } from '../data/mock'
 
 // Mode simulasi atau backend asli
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 // Alamat backend MURAH
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL ||
-    'http://localhost:3000/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   },
-  timeout: 10000
+  timeout: 10000,
 })
 
 // ========================================
@@ -42,39 +35,31 @@ export async function getPriceSummary(): Promise<PriceSummary> {
     return {
       ...mockPriceSummary,
       topRisers: sortedItems
-        .filter(item => item.changePercent > 0)
+        .filter((item) => item.changePercent > 0)
         .sort((a, b) => b.changePercent - a.changePercent),
 
       topFallers: sortedItems
-        .filter(item => item.changePercent < 0)
-        .sort((a, b) => a.changePercent - b.changePercent)
+        .filter((item) => item.changePercent < 0)
+        .sort((a, b) => a.changePercent - b.changePercent),
     }
   }
 
-  const response = await api.get<ApiResponse<PriceSummary>>(
-    '/prices/summary'
-  )
+  const response = await api.get<ApiResponse<PriceSummary>>('/prices/summary')
 
   return response.data.data
 }
 
 // GET /markets/nearby?lat&lon&limit
-export async function getNearbyMarkets(
-  params: NearbyMarketParams
-): Promise<Market[]> {
+export async function getNearbyMarkets(params: NearbyMarketParams): Promise<Market[]> {
   if (USE_MOCK) {
     let markets = [...mockMarkets]
 
     if (params.type?.length) {
-      markets = markets.filter(market =>
-        params.type!.includes(market.type)
-      )
+      markets = markets.filter((market) => params.type!.includes(market.type))
     }
 
     if (params.radius !== undefined) {
-      markets = markets.filter(
-        market => market.distanceKm <= params.radius!
-      )
+      markets = markets.filter((market) => market.distanceKm <= params.radius!)
     }
 
     if (params.limit !== undefined) {
@@ -84,30 +69,27 @@ export async function getNearbyMarkets(
     return markets
   }
 
-  const response = await api.get<ApiResponse<Market[]>>(
-    '/markets/nearby',
-    { params }
-  )
+  const response = await api.get<ApiResponse<Market[]>>('/markets/nearby', { params })
 
   return response.data.data
 }
 
 // GET /events?range&status&lat&lon&radius&limit
-export async function getEvents(params: {
-  range?: 'week' | 'month'
-  status?: 'ONGOING' | 'UPCOMING' | 'ALL'
-  lat?: number
-  lon?: number
-  radius?: number
-  limit?: number
-} = {}): Promise<MarketEvent[]> {
+export async function getEvents(
+  params: {
+    range?: 'week' | 'month'
+    status?: 'ONGOING' | 'UPCOMING' | 'ALL'
+    lat?: number
+    lon?: number
+    radius?: number
+    limit?: number
+  } = {}
+): Promise<MarketEvent[]> {
   if (USE_MOCK) {
     let events = [...mockEvents]
 
     if (params.status && params.status !== 'ALL') {
-      events = events.filter(
-        event => event.status === params.status
-      )
+      events = events.filter((event) => event.status === params.status)
     }
 
     if (params.limit !== undefined) {
@@ -117,10 +99,7 @@ export async function getEvents(params: {
     return events
   }
 
-  const response = await api.get<ApiResponse<MarketEvent[]>>(
-    '/events',
-    { params }
-  )
+  const response = await api.get<ApiResponse<MarketEvent[]>>('/events', { params })
 
   return response.data.data
 }
@@ -142,14 +121,8 @@ export async function getCommodityDetail(id: string) {
 }
 
 // GET /commodities/:id/history?days=7|30
-export async function getCommodityHistory(
-  id: string,
-  days: 7 | 30 = 7
-) {
-  const response = await api.get(
-    `/commodities/${id}/history`,
-    { params: { days } }
-  )
+export async function getCommodityHistory(id: string, days: 7 | 30 = 7) {
+  const response = await api.get(`/commodities/${id}/history`, { params: { days } })
 
   return response.data.data
 }
@@ -164,10 +137,7 @@ export async function getCommodityMarkets(
     limit?: number
   }
 ) {
-  const response = await api.get(
-    `/commodities/${id}/markets`,
-    { params }
-  )
+  const response = await api.get(`/commodities/${id}/markets`, { params })
 
   return response.data.data
 }

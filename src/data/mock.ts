@@ -1,9 +1,4 @@
-
-import type {
-  PriceSummary,
-  Market,
-  MarketEvent,
-} from '../types/api'
+import type { PriceSummary, Market, MarketEvent } from '../types/api'
 
 // Data simulasi harga sembako
 export const mockPriceSummary: PriceSummary = {
@@ -131,8 +126,8 @@ export const mockMarkets: Market[] = [
     name: 'Pasar Murah Sejahtera',
     type: 'CHEAP_MARKET',
     address: 'Bandung, Jawa Barat',
-    lat: -6.9200,
-    lon: 107.6100,
+    lat: -6.92,
+    lon: 107.61,
     distanceKm: 2.4,
     openHours: '08.00–14.00',
     isOpenNow: true,
@@ -143,8 +138,8 @@ export const mockMarkets: Market[] = [
     name: 'Toko Sembako Makmur',
     type: 'STORE',
     address: 'Bandung, Jawa Barat',
-    lat: -6.9100,
-    lon: 107.6200,
+    lat: -6.91,
+    lon: 107.62,
     distanceKm: 3.1,
     openHours: '07.00–21.00',
     isOpenNow: true,

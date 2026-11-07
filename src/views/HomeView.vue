@@ -1,23 +1,15 @@
-
 <template>
   <main class="home-view">
-
     <!-- SAMBUTAN -->
     <section class="welcome">
       <p class="greeting">Selamat datang 👋</p>
       <h2>Belanja pintar dimulai dari sini.</h2>
-      <p>
-        Pantau harga sembako dan temukan pasar murah di sekitarmu.
-      </p>
+      <p>Pantau harga sembako dan temukan pasar murah di sekitarmu.</p>
     </section>
 
     <!-- PENCARIAN -->
     <section class="search-section">
-      <input
-        type="text"
-        v-model="searchQuery"
-        placeholder="Cari beras, minyak, telur..."
-      />
+      <input type="text" v-model="searchQuery" placeholder="Cari beras, minyak, telur..." />
     </section>
 
     <!-- HARGA SEMBAKO -->
@@ -35,15 +27,9 @@
       </p>
 
       <div class="price-grid">
-        <p v-if="filteredProducts.length === 0">
-          Komoditas tidak ditemukan.
-        </p>
+        <p v-if="filteredProducts.length === 0">Komoditas tidak ditemukan.</p>
 
-        <div
-          v-for="product in filteredProducts"
-          :key="product.name"
-          class="price-card"
-        >
+        <div v-for="product in filteredProducts" :key="product.name" class="price-card">
           <h3>{{ product.name }}</h3>
           <h2>{{ formatPrice(product.price) }}</h2>
           <p>per {{ product.unit }}</p>
@@ -54,26 +40,20 @@
     <!-- PERGERAKAN HARGA -->
     <section class="movement-section">
       <h2>Pergerakan Harga Minggu Ini</h2>
-      <p class="section-description">
-        Komoditas dengan perubahan harga terbesar.
-      </p>
+      <p class="section-description">Komoditas dengan perubahan harga terbesar.</p>
 
       <div class="movement-grid">
         <div class="movement-card">
           <h3>🔺 Harga Paling Naik</h3>
           <div>
-            <p v-for="item in topRisers" :key="item.name">
-              {{ item.name }} — {{ item.change }}%
-            </p>
+            <p v-for="item in topRisers" :key="item.name">{{ item.name }} — {{ item.change }}%</p>
           </div>
         </div>
 
         <div class="movement-card">
           <h3>🔻 Harga Paling Turun</h3>
           <div>
-            <p v-for="item in topFallers" :key="item.name">
-              {{ item.name }} — {{ item.change }}%
-            </p>
+            <p v-for="item in topFallers" :key="item.name">{{ item.name }} — {{ item.change }}%</p>
           </div>
         </div>
       </div>
@@ -90,11 +70,7 @@
       </div>
 
       <div class="market-list">
-        <div
-          v-for="market in nearbyMarkets"
-          :key="market.id"
-          class="market-item"
-        >
+        <div v-for="market in nearbyMarkets" :key="market.id" class="market-item">
           <div>
             <h3>{{ market.name }}</h3>
             <p>{{ market.address }}</p>
@@ -108,21 +84,14 @@
     <section class="promo">
       <p class="promo-tag">PROGRAM PASAR MURAH</p>
       <h2>Belanja hemat, kebutuhan tetap terpenuhi!</h2>
-      <p>
-        Temukan jadwal pasar murah dan kesempatan mendapatkan
-        sembako dengan harga terjangkau.
-      </p>
-      <button type="button" @click="goToSchedule">
-        Lihat Jadwal Pasar Murah
-      </button>
+      <p>Temukan jadwal pasar murah dan kesempatan mendapatkan sembako dengan harga terjangkau.</p>
+      <button type="button" @click="goToSchedule">Lihat Jadwal Pasar Murah</button>
     </section>
 
     <!-- JADWAL PASAR MURAH -->
     <section class="events-section">
       <h2>Jadwal Pasar Murah</h2>
-      <p class="section-description">
-        Informasi kegiatan pasar murah mendatang.
-      </p>
+      <p class="section-description">Informasi kegiatan pasar murah mendatang.</p>
 
       <div class="event-card" v-if="upcomingEvent">
         <h3>{{ upcomingEvent.title }}</h3>
@@ -135,12 +104,9 @@
 
     <!-- CATATAN SUMBER DATA -->
     <footer class="footer">
-      <p>
-        Harga dapat berasal dari PIHPS, estimasi, atau laporan warga.
-      </p>
+      <p>Harga dapat berasal dari PIHPS, estimasi, atau laporan warga.</p>
       <p>© 2026 MURAH. Belanja lebih bijak.</p>
     </footer>
-
   </main>
 </template>
 
@@ -175,7 +141,7 @@ const products = ref<Product[]>([
   { name: 'Cabai Merah', price: 45000, unit: 'kg', change: 5.2 },
   { name: 'Bawang Merah', price: 38000, unit: 'kg', change: -2.1 },
   { name: 'Bawang Putih', price: 42000, unit: 'kg', change: 0.5 },
-  { name: 'Daging Ayam', price: 36000, unit: 'kg', change: 1.1 }
+  { name: 'Daging Ayam', price: 36000, unit: 'kg', change: 1.1 },
 ])
 
 const nearbyMarkets = ref<Market[]>([
@@ -183,44 +149,44 @@ const nearbyMarkets = ref<Market[]>([
     id: 1,
     name: 'Pasar Contoh 1',
     address: 'Jl. Merdeka',
-    distanceKm: 1.2
+    distanceKm: 1.2,
   },
   {
     id: 2,
     name: 'Pasar Contoh 2',
     address: 'Jl. Sudirman',
-    distanceKm: 2.4
+    distanceKm: 2.4,
   },
   {
     id: 3,
     name: 'Pasar Murah Contoh',
     address: 'Jl. Mawar',
-    distanceKm: 3.1
-  }
+    distanceKm: 3.1,
+  },
 ])
 
 const upcomingEvent = ref({
   title: 'Pasar Murah Minggu Ini',
   date: 'Sabtu, 14 November 2026',
-  location: 'Lokasi contoh'
+  location: 'Lokasi contoh',
 })
 
 const filteredProducts = computed(() => {
-  return products.value.filter(product =>
+  return products.value.filter((product) =>
     product.name.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
 
 const topRisers = computed(() =>
   [...products.value]
-    .filter(item => item.change > 0)
+    .filter((item) => item.change > 0)
     .sort((a, b) => b.change - a.change)
     .slice(0, 3)
 )
 
 const topFallers = computed(() =>
   [...products.value]
-    .filter(item => item.change < 0)
+    .filter((item) => item.change < 0)
     .sort((a, b) => a.change - b.change)
     .slice(0, 3)
 )

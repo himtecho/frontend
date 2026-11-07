@@ -1,4 +1,3 @@
-
 // ========================================
 // MURAH API CONTRACT - TYPESCRIPT TYPES
 // ========================================
@@ -10,16 +9,10 @@ export interface ApiResponse<T> {
 }
 
 // Sumber data harga
-export type PriceSource =
-  | 'PIHPS'
-  | 'SEED'
-  | 'CITIZEN'
+export type PriceSource = 'PIHPS' | 'SEED' | 'CITIZEN'
 
 // Tren harga
-export type PriceTrend =
-  | 'UP'
-  | 'DOWN'
-  | 'STABLE'
+export type PriceTrend = 'UP' | 'DOWN' | 'STABLE'
 
 // Data satu komoditas
 export interface PriceItem {
@@ -45,11 +38,7 @@ export interface PriceSummary {
 }
 
 // Jenis pasar
-export type MarketType =
-  | 'TRADITIONAL'
-  | 'CHEAP_MARKET'
-  | 'STORE'
-  | 'SUPERMARKET'
+export type MarketType = 'TRADITIONAL' | 'CHEAP_MARKET' | 'STORE' | 'SUPERMARKET'
 
 // Data pasar
 export interface Market {
@@ -66,10 +55,7 @@ export interface Market {
 }
 
 // Status kegiatan pasar murah
-export type EventStatus =
-  | 'ONGOING'
-  | 'UPCOMING'
-  | 'ENDED'
+export type EventStatus = 'ONGOING' | 'UPCOMING' | 'ENDED'
 
 // Data kegiatan
 export interface MarketEvent {
