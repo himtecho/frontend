@@ -1,4 +1,3 @@
-
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch, nextTick } from 'vue'
 import L from 'leaflet'
@@ -58,10 +57,7 @@ function renderMarkers() {
   layer.clearLayers()
 
   props.markets.forEach((market) => {
-    const marker = L.marker(
-      [market.latitude, market.longitude],
-      { icon: createMarker(market) }
-    )
+    const marker = L.marker([market.latitude, market.longitude], { icon: createMarker(market) })
 
     const prices = market.topPrices
       .slice(0, 3)

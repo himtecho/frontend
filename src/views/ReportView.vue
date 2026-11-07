@@ -20,12 +20,7 @@ function submitReport() {
 
     <form class="report-form" @submit.prevent="submitReport">
       <label for="commodity">Nama komoditas</label>
-      <input
-        id="commodity"
-        v-model="commodityName"
-        placeholder="Contoh: Beras"
-        required
-      />
+      <input id="commodity" v-model="commodityName" placeholder="Contoh: Beras" required />
 
       <label for="price">Harga per satuan (Rp)</label>
       <input

@@ -1,4 +1,3 @@
-
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import MarketMap from '../components/MarketMap.vue'
@@ -56,9 +55,7 @@ async function loadMarkets() {
     markets.value = await getNearbyMarkets(params)
   } catch (error) {
     errorMessage.value =
-      error instanceof Error
-        ? error.message
-        : 'Gagal memuat data pasar. Silakan coba lagi.'
+      error instanceof Error ? error.message : 'Gagal memuat data pasar. Silakan coba lagi.'
   } finally {
     loading.value = false
   }
@@ -66,9 +63,7 @@ async function loadMarkets() {
 
 function toggleType(type: MarketType) {
   if (selectedTypes.value.includes(type)) {
-    selectedTypes.value = selectedTypes.value.filter(
-      (item) => item !== type,
-    )
+    selectedTypes.value = selectedTypes.value.filter((item) => item !== type)
   } else {
     selectedTypes.value = [...selectedTypes.value, type]
   }
@@ -103,8 +98,7 @@ function selectMarket(market: Market) {
 
 function detectLocation() {
   if (!navigator.geolocation) {
-    locationMessage.value =
-      'Lokasi tidak didukung browser. Menampilkan pasar di Bandung.'
+    locationMessage.value = 'Lokasi tidak didukung browser. Menampilkan pasar di Bandung.'
     loadMarkets()
     return
   }
@@ -117,15 +111,14 @@ function detectLocation() {
       loadMarkets()
     },
     () => {
-      locationMessage.value =
-        'Lokasi tidak tersedia. Menampilkan pasar di sekitar Bandung.'
+      locationMessage.value = 'Lokasi tidak tersedia. Menampilkan pasar di sekitar Bandung.'
       loadMarkets()
     },
     {
       enableHighAccuracy: true,
       timeout: 10000,
       maximumAge: 300000,
-    },
+    }
   )
 }
 
@@ -140,10 +133,7 @@ onMounted(() => {
       <div>
         <span class="eyebrow">JELAJAHI SEKITARMU</span>
         <h1>Temukan Pasar <span>Terdekat!</span></h1>
-        <p>
-          Cari pasar murah dan bandingkan harga kebutuhan pokok
-          di sekitarmu.
-        </p>
+        <p>Cari pasar murah dan bandingkan harga kebutuhan pokok di sekitarmu.</p>
       </div>
 
       <div class="location-info">
@@ -159,9 +149,7 @@ onMounted(() => {
           <p>Sesuaikan pasar yang ingin kamu temukan.</p>
         </div>
 
-        <button class="reset-button" @click="resetFilters">
-          Reset
-        </button>
+        <button class="reset-button" @click="resetFilters">Reset</button>
       </div>
 
       <div class="filter-group">
@@ -201,9 +189,7 @@ onMounted(() => {
           <p>Lihat lokasi pasar dan informasi harga.</p>
         </div>
 
-        <span class="result-count">
-          {{ markets.length }} lokasi
-        </span>
+        <span class="result-count"> {{ markets.length }} lokasi </span>
       </div>
 
       <div v-if="loading" class="status-card">
@@ -215,9 +201,7 @@ onMounted(() => {
         <span class="status-icon">!</span>
         <h3>Belum berhasil memuat data</h3>
         <p>{{ errorMessage }}</p>
-        <button class="primary-button" @click="loadMarkets">
-          Coba lagi
-        </button>
+        <button class="primary-button" @click="loadMarkets">Coba lagi</button>
       </div>
 
       <div v-else-if="markets.length === 0" class="status-card">
@@ -227,10 +211,7 @@ onMounted(() => {
       </div>
 
       <template v-else>
-        <MarketMap
-          :markets="markets"
-          @select="selectMarket"
-        />
+        <MarketMap :markets="markets" @select="selectMarket" />
 
         <div v-if="selectedMarket" class="selected-market">
           <div class="selected-heading">
@@ -310,10 +291,7 @@ onMounted(() => {
         </button>
       </div>
 
-      <div
-        v-else-if="!loading && !errorMessage && markets.length === 0"
-        class="empty-list"
-      >
+      <div v-else-if="!loading && !errorMessage && markets.length === 0" class="empty-list">
         Belum ada pasar untuk ditampilkan.
       </div>
     </section>

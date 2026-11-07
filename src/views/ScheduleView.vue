@@ -2,14 +2,9 @@
   <main class="placeholder-page">
     <div class="placeholder-icon">📅</div>
     <h1>Jadwal Pasar Murah</h1>
-    <p>
-      Temukan informasi jadwal dan lokasi kegiatan pasar murah
-      di sekitarmu.
-    </p>
+    <p>Temukan informasi jadwal dan lokasi kegiatan pasar murah di sekitarmu.</p>
 
-    <div class="coming-soon">
-      Informasi jadwal akan segera tersedia.
-    </div>
+    <div class="coming-soon">Informasi jadwal akan segera tersedia.</div>
   </main>
 </template>
 

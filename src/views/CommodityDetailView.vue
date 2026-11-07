@@ -11,9 +11,7 @@ const route = useRoute()
     <p>Informasi lengkap harga komoditas akan ditampilkan di sini.</p>
     <p class="info">ID Komoditas: {{ route.params.id }}</p>
 
-    <RouterLink to="/" class="back-button">
-      Kembali ke Beranda
-    </RouterLink>
+    <RouterLink to="/" class="back-button"> Kembali ke Beranda </RouterLink>
   </main>
 </template>
 

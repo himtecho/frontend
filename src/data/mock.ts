@@ -1,4 +1,3 @@
-
 import type { PriceSummary, Market, MarketEvent } from '../types/api'
 
 // ========================================
