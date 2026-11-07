@@ -1,26 +1,47 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
+import AppButton from '../components/AppButton.vue'
+import AppHeader from '../components/AppHeader.vue'
+import AppIcon from '../components/Appicon.vue'
+import EmptyState from '../components/EmptyState.vue'
+import ErrorState from '../components/ErrorState.vue'
+import InlineAlert from '../components/InlineAlert.vue'
 import MarketMap from '../components/MarketMap.vue'
+import SkeletonRow from '../components/SkeletonRow.vue'
+import SourceBadge from '../components/SourceBadge.vue'
 import { useFetch } from '../composables/useFetch'
 import { DEFAULT_CENTER, useGeolocation } from '../composables/useGeolocation'
+import { useOnline } from '../composables/useOnline'
 import { districts } from '../data/districts'
 import { getNearbyMarkets } from '../services/api'
 import type { Market, MarketType } from '../types/api'
 
+const online = useOnline()
 const { coords, status, label, needsManualPick, ensure, request, setManual } = useGeolocation()
 onMounted(ensure)
 
-const radius = ref(5)
+const RADIUS_OPTIONS = [1, 3, 5] as const
+
+const radius = ref<number>(5)
 const selectedTypes = ref<MarketType[]>([])
 const selectedMarket = ref<Market | null>(null)
 const districtIndex = ref<number | ''>('')
+const sheetEl = ref<HTMLElement | null>(null)
 
-const marketTypes: { label: string; value: MarketType }[] = [
-  { label: 'Pasar tradisional', value: 'TRADITIONAL' },
-  { label: 'Pasar murah', value: 'CHEAP_MARKET' },
-  { label: 'Toko', value: 'STORE' },
-  { label: 'Supermarket', value: 'SUPERMARKET' },
+// Each type gets a distinct icon (the map markers must use the same shape/color mapping)
+type MarketIcon = 'market-traditional' | 'market-cheap' | 'market-store' | 'market-supermarket'
+
+const marketTypes: { label: string; value: MarketType; icon: MarketIcon }[] = [
+  { label: 'Pasar Tradisional', value: 'TRADITIONAL', icon: 'market-traditional' },
+  { label: 'Pasar Murah', value: 'CHEAP_MARKET', icon: 'market-cheap' },
+  { label: 'Toko', value: 'STORE', icon: 'market-store' },
+  { label: 'Supermarket', value: 'SUPERMARKET', icon: 'market-supermarket' },
 ]
+const typeMeta = Object.fromEntries(marketTypes.map((t) => [t.value, t])) as Record<
+  MarketType,
+  (typeof marketTypes)[number]
+>
 
 // Keep the picker visible after a district is chosen so it can be changed again
 const showPicker = computed(() => needsManualPick.value || status.value === 'manual')
@@ -48,6 +69,7 @@ const {
 )
 
 const markets = computed(() => data.value ?? [])
+const boardLoading = computed(() => geoPending.value || (loading.value && !data.value))
 
 // Close the detail card whenever a new result set arrives
 watch(data, () => {
@@ -61,12 +83,16 @@ const locationMessage = computed(() => {
     case 'manual':
       return `Menampilkan pasar di sekitar ${label.value}.`
     case 'denied':
+      return 'Izin lokasi ditolak. Menampilkan pasar di pusat kota Bandung. Pilih kecamatanmu di bawah.'
     case 'unavailable':
-      return 'Lokasi tidak tersedia. Menampilkan pasar di pusat kota Bandung.'
+      return 'Lokasi tidak tersedia. Menampilkan pasar di pusat kota Bandung. Pilih kecamatanmu di bawah.'
     default:
       return 'Sedang mendeteksi lokasi...'
   }
 })
+const locationIsProblem = computed(
+  () => status.value === 'denied' || status.value === 'unavailable'
+)
 
 function pickDistrict() {
   if (districtIndex.value === '') return
@@ -80,593 +106,698 @@ function toggleType(type: MarketType) {
     : [...selectedTypes.value, type]
 }
 
+const filtersActive = computed(() => radius.value !== 5 || selectedTypes.value.length > 0)
+
 function resetFilters() {
   radius.value = 5
   selectedTypes.value = []
 }
 
-function formatMarketType(type: MarketType) {
-  const labels: Record<MarketType, string> = {
-    TRADITIONAL: 'Pasar Tradisional',
-    CHEAP_MARKET: 'Pasar Murah',
-    STORE: 'Toko',
-    SUPERMARKET: 'Supermarket',
-  }
-  return labels[type]
+async function selectMarket(market: Market) {
+  selectedMarket.value = market
+  await nextTick()
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  sheetEl.value?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' })
 }
 
+// ---- formatting (Indonesian) ----
 const formatPrice = (price: number) => `Rp ${price.toLocaleString('id-ID')}`
 
-function selectMarket(market: Market) {
-  selectedMarket.value = market
+function formatDistance(km: number | null | undefined) {
+  if (km === null || km === undefined) return '-'
+  if (km < 1) return `${Math.round(km * 1000)} m`
+  return `${km.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`
 }
+
+function openStatus(m: Market) {
+  if (m.isOpenNow === null || m.isOpenNow === undefined)
+    return { text: 'Jam belum diketahui', tone: 'unknown' }
+  return m.isOpenNow ? { text: 'Buka', tone: 'open' } : { text: 'Tutup', tone: 'closed' }
+}
+
+// Source of a top price (nullable on the API side, so read it defensively)
+const sourceOf = (item: unknown) => (item as { source?: 'PIHPS' | 'SEED' | 'CITIZEN' }).source
+const selectedHasSeed = computed(
+  () => selectedMarket.value?.topPrices.slice(0, 3).some((p) => sourceOf(p) === 'SEED') ?? false
+)
 </script>
 
 <template>
-  <main class="map-page">
-    <header class="map-header">
-      <div>
-        <span class="eyebrow">JELAJAHI SEKITARMU</span>
-        <h1>Temukan Pasar <span>Terdekat!</span></h1>
-        <p>Cari pasar murah dan bandingkan harga kebutuhan pokok di sekitarmu.</p>
-      </div>
+  <div>
+    <AppHeader />
 
-      <div class="location-info">
-        <span class="location-icon">⌖</span>
-        <span>{{ locationMessage }}</span>
-        <button v-if="showPicker" type="button" class="reset-button" @click="request">
-          Pakai lokasiku
-        </button>
-      </div>
+    <main class="page map-page">
+      <InlineAlert v-if="!online" icon="wifi-off" class="offline">
+        Kamu sedang offline. Data yang tampil mungkin bukan yang terbaru.
+      </InlineAlert>
 
-      <select
-        v-if="showPicker && districts.length"
-        v-model="districtIndex"
-        class="district-picker"
-        aria-label="Pilih kecamatan"
-        @change="pickDistrict"
-      >
-        <option value="" disabled>Pilih kecamatan</option>
-        <option v-for="(d, i) in districts" :key="d.name" :value="i">{{ d.name }}</option>
-      </select>
-    </header>
+      <!-- title -->
+      <section class="intro" aria-labelledby="map-title">
+        <p class="eyebrow">Jelajahi sekitarmu</p>
+        <h1 id="map-title" class="title">Pasar terdekat</h1>
+      </section>
 
-    <section class="filter-card">
-      <div class="section-heading">
-        <div>
-          <h2>Filter Pencarian</h2>
-          <p>Sesuaikan pasar yang ingin kamu temukan.</p>
+      <!-- location status + manual district picker -->
+      <div class="notice" :class="{ problem: locationIsProblem }" role="status">
+        <div class="notice-line">
+          <AppIcon name="pin" :size="20" class="notice-icon" />
+          <p class="notice-text">{{ locationMessage }}</p>
         </div>
-
-        <button class="reset-button" @click="resetFilters">Reset</button>
+        <div v-if="showPicker || locationIsProblem" class="notice-actions">
+          <label for="district" class="sr-only">Pilih kecamatan</label>
+          <select
+            v-if="districts.length"
+            id="district"
+            v-model="districtIndex"
+            class="select"
+            @change="pickDistrict"
+          >
+            <option value="" disabled>Pilih kecamatan</option>
+            <option v-for="(d, i) in districts" :key="d.name" :value="i">{{ d.name }}</option>
+          </select>
+          <AppButton variant="secondary" @click="request">Pakai lokasiku</AppButton>
+        </div>
       </div>
 
-      <div class="filter-group">
-        <label for="radius">Jarak pencarian</label>
-
-        <select id="radius" v-model.number="radius">
-          <option :value="1">1 km</option>
-          <option :value="3">3 km</option>
-          <option :value="5">5 km</option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label>Jenis pasar</label>
-
-        <div class="type-filters">
+      <!-- filters -->
+      <section class="filters" aria-label="Filter pencarian">
+        <div class="chips" role="group" aria-label="Jenis pasar">
           <button
             v-for="option in marketTypes"
             :key="option.value"
             type="button"
-            class="type-chip"
+            class="chip"
             :class="{ active: selectedTypes.includes(option.value) }"
             :aria-pressed="selectedTypes.includes(option.value)"
             @click="toggleType(option.value)"
           >
-            <span v-if="selectedTypes.includes(option.value)">✓ </span>
+            <AppIcon :name="option.icon" :size="18" />
             {{ option.label }}
           </button>
         </div>
-      </div>
-    </section>
 
-    <section class="map-section">
-      <div class="section-heading">
-        <div>
-          <h2>Peta Pasar</h2>
-          <p>Lihat lokasi pasar dan informasi harga.</p>
-        </div>
-
-        <span class="result-count"> {{ markets.length }} lokasi </span>
-      </div>
-
-      <div v-if="loading" class="status-card">
-        <div class="loader"></div>
-        <p>Sedang mencari pasar terdekat...</p>
-      </div>
-
-      <div v-else-if="errorMessage" class="status-card error-card">
-        <span class="status-icon">!</span>
-        <h3>Belum berhasil memuat data</h3>
-        <p>{{ errorMessage }}</p>
-        <button class="primary-button" @click="reload">Coba lagi</button>
-      </div>
-
-      <div v-else-if="markets.length === 0" class="status-card">
-        <span class="status-icon">⌖</span>
-        <h3>Belum ada pasar ditemukan</h3>
-        <p>Coba ubah jenis pasar atau perluas jarak pencarian.</p>
-      </div>
-
-      <template v-else>
-        <MarketMap :markets="markets" @select="selectMarket" />
-
-        <div v-if="selectedMarket" class="selected-market">
-          <div class="selected-heading">
-            <div>
-              <span class="selected-label">PASAR DIPILIH</span>
-              <h3>{{ selectedMarket.name }}</h3>
-            </div>
-
+        <div class="filters-row">
+          <div class="segmented" role="radiogroup" aria-label="Jarak pencarian">
             <button
-              class="close-button"
-              aria-label="Tutup detail pasar"
-              @click="selectedMarket = null"
+              v-for="km in RADIUS_OPTIONS"
+              :key="km"
+              type="button"
+              role="radio"
+              class="seg"
+              :class="{ active: radius === km }"
+              :aria-checked="radius === km"
+              @click="radius = km"
             >
-              ×
+              {{ km }} km
             </button>
           </div>
+          <button type="button" class="ghost" :disabled="!filtersActive" @click="resetFilters">
+            Reset
+          </button>
+        </div>
+      </section>
 
-          <p class="market-address">
-            {{ selectedMarket.address }}
+      <!-- map: roughly the top half of the viewport -->
+      <div class="map-frame">
+        <div v-if="boardLoading" class="map-skeleton" aria-busy="true" aria-label="Memuat peta" />
+        <MarketMap
+          v-else
+          :markets="markets"
+          :selected-id="selectedMarket?.id ?? null"
+          :center="origin"
+          :show-user="status === 'granted' || status === 'manual'"
+          @select="selectMarket"
+        />
+      </div>
+
+      <!-- bottom sheet -->
+      <section ref="sheetEl" class="sheet" aria-labelledby="sheet-title">
+        <span class="sheet-handle" aria-hidden="true" />
+
+        <div class="section-head">
+          <h2 id="sheet-title" class="section-title">Daftar pasar</h2>
+          <p v-if="!boardLoading && !errorMessage" class="count" aria-live="polite">
+            {{ markets.length }} lokasi
           </p>
+        </div>
 
-          <div class="market-meta">
-            <span>{{ formatMarketType(selectedMarket.type) }}</span>
-            <span>{{ selectedMarket.distanceKm.toFixed(1) }} km</span>
-            <span>
-              {{
-                selectedMarket.isOpenNow === null
-                  ? 'Jam belum diketahui'
-                  : selectedMarket.isOpenNow
-                    ? 'Sedang buka'
-                    : 'Sedang tutup'
-              }}
-            </span>
-          </div>
-
-          <div v-if="selectedMarket.topPrices.length" class="selected-prices">
-            <h4>Harga unggulan</h4>
-
-            <div
-              v-for="item in selectedMarket.topPrices.slice(0, 3)"
-              :key="item.commodityId"
-              class="price-row"
-            >
-              <span>{{ item.name }} / {{ item.unit }}</span>
-              <strong>{{ formatPrice(item.price) }}</strong>
+        <!-- detail card of the selected market -->
+        <Transition name="slide">
+          <article v-if="selectedMarket" class="detail" aria-label="Pasar dipilih">
+            <div class="detail-head">
+              <div class="detail-title">
+                <p class="eyebrow">{{ typeMeta[selectedMarket.type].label }}</p>
+                <h3 class="detail-name">{{ selectedMarket.name }}</h3>
+              </div>
+              <button
+                type="button"
+                class="icon-button"
+                aria-label="Tutup detail pasar"
+                @click="selectedMarket = null"
+              >
+                <AppIcon name="x" :size="20" />
+              </button>
             </div>
-          </div>
-        </div>
-      </template>
-    </section>
 
-    <section class="market-list-section">
-      <div class="section-heading">
-        <div>
-          <h2>Daftar Pasar</h2>
-          <p>Pilih pasar untuk melihat informasi singkatnya.</p>
-        </div>
-      </div>
+            <p class="detail-address">{{ selectedMarket.address }}</p>
 
-      <div v-if="!loading && markets.length" class="market-list">
-        <button
-          v-for="market in markets"
-          :key="market.id"
-          class="market-list-item"
-          :class="{ 'is-selected': selectedMarket?.id === market.id }"
-          @click="selectMarket(market)"
+            <ul class="meta">
+              <li class="meta-item">{{ formatDistance(selectedMarket.distanceKm) }}</li>
+              <li class="meta-item" :class="`status-${openStatus(selectedMarket).tone}`">
+                {{ openStatus(selectedMarket).text }}
+              </li>
+              <li v-if="selectedMarket.openHours" class="meta-item">
+                {{ selectedMarket.openHours }}
+              </li>
+            </ul>
+
+            <div v-if="selectedMarket.topPrices.length" class="prices">
+              <h4 class="prices-title">Harga unggulan</h4>
+              <ul>
+                <li
+                  v-for="item in selectedMarket.topPrices.slice(0, 3)"
+                  :key="item.commodityId"
+                  class="price-row"
+                >
+                  <div class="price-name">
+                    <span class="price-label">{{ item.name }}</span>
+                    <span class="price-unit">per {{ item.unit }}</span>
+                    <SourceBadge v-if="sourceOf(item)" :source="sourceOf(item)!" />
+                  </div>
+                  <strong class="price">{{ formatPrice(item.price) }}</strong>
+                </li>
+              </ul>
+              <p v-if="selectedHasSeed" class="footnote">
+                Harga berlabel Estimasi adalah perkiraan dari harga acuan kota, bukan harga yang
+                dicek langsung di lokasi.
+              </p>
+            </div>
+
+            <RouterLink :to="`/market/${selectedMarket.id}`" class="detail-link">
+              Lihat detail pasar<AppIcon name="chevron-right" :size="18" />
+            </RouterLink>
+          </article>
+        </Transition>
+
+        <!-- states: loading / error / empty / list -->
+        <div v-if="boardLoading" class="board" aria-busy="true" aria-label="Memuat pasar terdekat">
+          <SkeletonRow v-for="n in 4" :key="n" variant="market" />
+        </div>
+
+        <ErrorState
+          v-else-if="errorMessage"
+          title="Belum berhasil memuat data"
+          :message="String(errorMessage)"
+          @retry="reload"
+        />
+
+        <EmptyState
+          v-else-if="markets.length === 0"
+          title="Belum ada pasar ditemukan"
+          text="Coba ubah jenis pasar atau perluas jarak pencarian."
         >
-          <div class="market-list-icon">🛒</div>
+          <AppButton v-if="filtersActive" @click="resetFilters">Reset filter</AppButton>
+        </EmptyState>
 
-          <div class="market-list-content">
-            <strong>{{ market.name }}</strong>
-            <span>{{ formatMarketType(market.type) }}</span>
-            <small>{{ market.distanceKm.toFixed(1) }} km dari lokasi</small>
-          </div>
-
-          <span class="market-arrow">›</span>
-        </button>
-      </div>
-
-      <div v-else-if="!loading && !errorMessage && markets.length === 0" class="empty-list">
-        Belum ada pasar untuk ditampilkan.
-      </div>
-    </section>
-  </main>
+        <ul v-else class="board">
+          <li v-for="m in markets" :key="m.id" class="board-item">
+            <button
+              type="button"
+              class="row"
+              :class="{ selected: selectedMarket?.id === m.id }"
+              :aria-pressed="selectedMarket?.id === m.id"
+              @click="selectMarket(m)"
+            >
+              <span class="row-icon" aria-hidden="true">
+                <AppIcon :name="typeMeta[m.type].icon" :size="22" />
+              </span>
+              <span class="row-body">
+                <span class="row-name">{{ m.name }}</span>
+                <span class="row-meta">
+                  {{ typeMeta[m.type].label }} · {{ formatDistance(m.distanceKm) }}
+                </span>
+              </span>
+              <span class="status" :class="`status-${openStatus(m).tone}`">
+                {{ openStatus(m).text }}
+              </span>
+              <AppIcon name="chevron-right" :size="20" class="row-chevron" />
+            </button>
+          </li>
+        </ul>
+      </section>
+    </main>
+  </div>
 </template>
 
 <style scoped>
-.map-page {
-  width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 24px 18px 110px;
-  color: #203b2d;
+.offline {
+  margin-top: var(--space-12);
 }
 
-.map-header {
-  padding: 25px 22px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, #176b42, #26945b);
-  color: white;
-  box-shadow: 0 8px 22px rgba(23, 107, 66, 0.16);
+/* intro */
+.intro {
+  padding: var(--space-24) 0 var(--space-12);
 }
-
 .eyebrow {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: #ffe38a;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.title {
+  margin-top: var(--space-4);
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
 }
 
-.map-header h1 {
-  margin: 10px 0;
-  font-size: clamp(25px, 6vw, 34px);
-  line-height: 1.2;
+/* location notice */
+.notice {
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
-
-.map-header h1 span {
-  color: #ffdf69;
+.notice.problem {
+  border-color: var(--line-strong);
 }
-
-.map-header p {
-  max-width: 440px;
-  margin: 0;
-  color: #e5f4e9;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.location-info {
+.notice-line {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 20px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.13);
-  font-size: 11px;
+  align-items: flex-start;
+  gap: var(--space-8);
 }
-
-.location-icon {
-  font-size: 19px;
+.notice-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--brand);
 }
-
-.filter-card,
-.map-section,
-.market-list-section {
-  margin-top: 22px;
+.notice-text {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
 }
-
-.filter-card {
-  padding: 19px;
-  border: 1px solid #e8eee8;
-  border-radius: 18px;
-  background: white;
-  box-shadow: 0 4px 15px rgba(32, 59, 45, 0.04);
-}
-
-.section-heading,
-.selected-heading {
+.notice-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-8);
 }
-
-.section-heading h2,
-.selected-heading h3 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.section-heading p {
-  margin: 5px 0 0;
-  color: #849188;
-  font-size: 11px;
-}
-
-.reset-button {
-  padding: 7px 12px;
-  border: 0;
-  border-radius: 9px;
-  background: #fff5d8;
-  color: #916a00;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.filter-group {
-  margin-top: 19px;
-}
-
-.filter-group label {
-  display: block;
-  margin-bottom: 9px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.filter-group select {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #e2eae3;
-  border-radius: 11px;
-  background: #f9fbf8;
-  color: #203b2d;
+.select {
+  flex: 1;
+  min-width: 160px;
+  height: 48px;
+  padding: 0 var(--space-12);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
   font: inherit;
-  font-size: 12px;
+  font-size: 16px; /* 16px stops iOS zooming on focus */
 }
 
-.type-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.type-chip {
-  padding: 9px 11px;
-  border: 1px solid #e2eae3;
-  border-radius: 20px;
-  background: #f9fbf8;
-  color: #637369;
-  font-size: 10px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.type-chip.active {
-  border-color: #16834a;
-  background: #e8f5ec;
-  color: #16834a;
-  font-weight: 700;
-}
-
-.result-count {
-  padding: 7px 10px;
-  border-radius: 20px;
-  background: #e8f5ec;
-  color: #16834a;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.map-section > .section-heading {
-  margin-bottom: 13px;
-}
-
-.status-card {
-  display: flex;
-  min-height: 190px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  border: 1px dashed #dce8dd;
-  border-radius: 18px;
-  background: white;
-  text-align: center;
-}
-
-.status-card h3 {
-  margin: 10px 0 5px;
-  font-size: 15px;
-}
-
-.status-card p {
-  max-width: 320px;
-  margin: 5px 0;
-  color: #87938a;
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-.status-icon {
+/* filters */
+.filters {
   display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 50%;
-  background: #fff3d0;
-  color: #a77b00;
-  font-size: 22px;
+  gap: var(--space-12);
+  margin-top: var(--space-16);
 }
-
-.loader {
-  width: 30px;
-  height: 30px;
-  border: 3px solid #e0eee4;
-  border-top-color: #16834a;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.primary-button {
-  margin-top: 12px;
-  padding: 10px 18px;
-  border: 0;
-  border-radius: 10px;
-  background: #16834a;
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.selected-market {
-  margin-top: 13px;
-  padding: 17px;
-  border: 1px solid #dcebdd;
-  border-radius: 16px;
-  background: #f8fcf8;
-}
-
-.selected-label {
-  color: #16834a;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 1px;
-}
-
-.selected-heading h3 {
-  margin-top: 5px;
-}
-
-.close-button {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 50%;
-  background: #e8f1e9;
-  color: #41634d;
-  font-size: 21px;
-  cursor: pointer;
-}
-
-.market-address {
-  margin: 10px 0;
-  color: #758278;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.market-meta {
+.chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
+  gap: var(--space-8);
+  margin-inline: calc(var(--space-16) * -1);
+  padding-inline: var(--space-16);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-
-.market-meta span {
-  padding: 6px 9px;
-  border-radius: 20px;
-  background: #eaf3eb;
-  color: #477052;
-  font-size: 9px;
+.chips::-webkit-scrollbar {
+  display: none;
 }
-
-.selected-prices {
-  margin-top: 16px;
+.chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--tap);
+  padding: 0 var(--space-16);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill, 999px);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
 }
-
-.selected-prices h4 {
-  margin: 0 0 8px;
-  font-size: 12px;
+.chip.active {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+  box-shadow: inset 0 0 0 1px var(--brand); /* thicker border, so the state is not color-only */
 }
-
-.price-row {
+.filters-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 9px 0;
-  border-top: 1px solid #e6eee6;
-  font-size: 11px;
+  gap: var(--space-12);
 }
-
-.price-row strong {
-  color: #16834a;
-  white-space: nowrap;
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
-
-.market-list-section > .section-heading {
-  margin-bottom: 13px;
-}
-
-.market-list {
-  display: grid;
-  gap: 10px;
-}
-
-.market-list-item {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 12px;
-  padding: 13px;
-  border: 1px solid #e9eee9;
-  border-radius: 15px;
-  background: white;
-  color: #203b2d;
-  text-align: left;
+.seg {
+  min-width: 64px;
+  min-height: 40px;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: calc(var(--radius-card) - 2px);
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
   cursor: pointer;
-  transition: 0.2s;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.seg.active {
+  background: var(--brand);
+  color: var(--surface);
+}
+.ghost {
+  min-height: var(--tap);
+  padding: 0 var(--space-12);
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.ghost:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+  opacity: 0.6;
 }
 
-.market-list-item:hover,
-.market-list-item.is-selected {
-  border-color: #8fc5a0;
-  background: #f4faf5;
+/* map: about half of the viewport, full-bleed */
+.map-frame {
+  height: clamp(260px, 46vh, 480px);
+  margin: var(--space-16) calc(var(--space-16) * -1) 0;
+  background: var(--skeleton-base);
+}
+.map-frame > :deep(*) {
+  width: 100%;
+  height: 100%;
+}
+.map-skeleton {
+  width: 100%;
+  height: 100%;
+  background: var(--skeleton-base);
 }
 
-.market-list-icon {
-  display: grid;
+/* bottom sheet: the only place that uses the soft shadow, together with the bottom nav */
+.sheet {
+  position: relative;
+  z-index: var(--z-sheet, 10);
+  margin: calc(var(--space-16) * -1) calc(var(--space-16) * -1) 0;
+  padding: var(--space-8) var(--space-16) var(--space-32);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+}
+.sheet-handle {
+  display: block;
   width: 40px;
-  height: 40px;
+  height: 4px;
+  margin: 0 auto var(--space-4);
+  border-radius: var(--radius-pill, 999px);
+  background: var(--line-strong);
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: var(--tap);
+}
+.section-title {
+  font-size: var(--fs-heading);
+  line-height: var(--lh-heading);
+  font-weight: var(--fw-bold);
+}
+.count {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* selected market detail */
+.detail {
+  margin: var(--space-4) 0 var(--space-16);
+  padding: var(--space-16);
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+.detail-title {
+  min-width: 0;
+}
+.detail-name {
+  margin-top: var(--space-4);
+  font-size: var(--fs-heading);
+  line-height: var(--lh-heading);
+  font-weight: var(--fw-bold);
+  overflow-wrap: anywhere;
+}
+.icon-button {
+  display: grid;
   flex-shrink: 0;
   place-items: center;
-  border-radius: 12px;
-  background: #e8f5ec;
-  font-size: 19px;
+  width: var(--tap);
+  height: var(--tap);
+  margin: calc(var(--space-8) * -1) calc(var(--space-8) * -1) 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
 }
-
-.market-list-content {
+.detail-address {
+  margin-top: var(--space-8);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+.meta-item {
+  padding: var(--space-4) var(--space-12);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill, 999px);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-variant-numeric: tabular-nums;
+}
+.prices {
+  margin-top: var(--space-16);
+}
+.prices-title {
+  padding-bottom: var(--space-8);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-bold);
+}
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-12) 0;
+  border-top: 1px solid var(--line);
+}
+.price-name {
   display: grid;
   min-width: 0;
-  flex: 1;
-  gap: 3px;
+  gap: 2px;
+  justify-items: start;
 }
-
-.market-list-content strong {
+.price-label {
+  max-width: 100%;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.market-list-content span {
-  color: #16834a;
-  font-size: 10px;
+.price-unit {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+}
+.price {
+  flex-shrink: 0;
+  font-size: var(--fs-heading);
+  line-height: var(--lh-heading);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.footnote {
+  margin-top: var(--space-8);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+}
+.detail-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-top: var(--space-8);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
 }
 
-.market-list-content small {
-  color: #929d94;
-  font-size: 10px;
+/* ruled list: hairlines, two columns from 640px up */
+.board {
+  border-top: 1px solid var(--line);
+}
+.board-item {
+  border-bottom: 1px solid var(--line);
+}
+.row {
+  display: flex;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row.selected {
+  background: var(--brand-tint);
+  box-shadow:
+    -16px 0 0 var(--brand-tint),
+    16px 0 0 var(--brand-tint);
+}
+.row-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--brand);
+}
+.row-body {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.row-name {
+  overflow: hidden;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-meta {
+  overflow: hidden;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-chevron {
+  flex-shrink: 0;
+  color: var(--ink-muted);
 }
 
-.market-arrow {
-  color: #16834a;
-  font-size: 24px;
+/* open/closed: always text, never color alone */
+.status {
+  flex-shrink: 0;
+  padding: 2px var(--space-8);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill, 999px);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-muted);
+}
+.status-open {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+}
+.meta-item.status-open {
+  font-weight: var(--fw-semibold);
 }
 
-.empty-list {
-  padding: 20px;
-  border-radius: 14px;
-  background: white;
-  color: #87938a;
-  font-size: 12px;
-  text-align: center;
+/* sheet slide: functional motion only */
+.slide-enter-active,
+.slide-leave-active {
+  transition:
+    opacity var(--dur-base, 200ms) var(--ease-out),
+    transform var(--dur-base, 200ms) var(--ease-out);
+}
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-enter-active,
+  .slide-leave-active,
+  .chip,
+  .seg {
+    transition: none;
+  }
 }
 
-@media (min-width: 700px) {
-  .map-page {
-    padding: 30px 24px 50px;
+@media (min-width: 640px) {
+  ul.board {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--space-32);
+    border-top: 0;
+  }
+  ul.board > .board-item:nth-child(-n + 2) {
+    border-top: 1px solid var(--line);
+  }
+  .row.selected {
+    box-shadow: none;
   }
 }
 </style>
