@@ -1,4 +1,4 @@
-import type { MarketEvent } from "../types/api"
+import type { MarketEvent } from '../types/api'
 
 const TZ = 'Asia/Jakarta'
 
@@ -33,4 +33,5 @@ export function eventStatusLabel(e: Pick<MarketEvent, 'status' | 'daysUntil'>): 
   return `${e.daysUntil ?? '?'} hari lagi`
 }
 
-export const formatDistance = (km: number) => (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
+export const formatDistance = (km: number) =>
+  km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`

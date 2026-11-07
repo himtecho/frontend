@@ -93,7 +93,8 @@ export async function getNearbyMarkets(params: NearbyMarketParams): Promise<Mark
 export async function getEvents(params: EventParams = {}): Promise<MarketEvent[]> {
   if (USE_MOCK) {
     let events = [...mockEvents]
-    if (params.status && params.status !== 'ALL') events = events.filter((e) => e.status === params.status)
+    if (params.status && params.status !== 'ALL')
+      events = events.filter((e) => e.status === params.status)
     else if (!params.status) events = events.filter((e) => e.status !== 'ENDED') // contract default
     if (params.limit !== undefined) events = events.slice(0, params.limit)
     return events
@@ -121,8 +122,13 @@ export async function getCommodityDetail(id: number | string): Promise<Commodity
 }
 
 // GET /commodities/:id/history?days=7|30
-export async function getCommodityHistory(id: number | string, days: 7 | 30 = 7): Promise<CommodityHistory> {
-  return unwrap(await api.get<ApiResponse<CommodityHistory>>(`/commodities/${id}/history`, { params: { days } }))
+export async function getCommodityHistory(
+  id: number | string,
+  days: 7 | 30 = 7
+): Promise<CommodityHistory> {
+  return unwrap(
+    await api.get<ApiResponse<CommodityHistory>>(`/commodities/${id}/history`, { params: { days } })
+  )
 }
 
 // GET /commodities/:id/markets?lat&lon&radius&limit
@@ -130,7 +136,9 @@ export async function getCommodityMarkets(
   id: number | string,
   params: CommodityMarketsParams = {}
 ): Promise<CommodityMarkets> {
-  return unwrap(await api.get<ApiResponse<CommodityMarkets>>(`/commodities/${id}/markets`, { params }))
+  return unwrap(
+    await api.get<ApiResponse<CommodityMarkets>>(`/commodities/${id}/markets`, { params })
+  )
 }
 
 // ========================================

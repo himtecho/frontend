@@ -20,7 +20,7 @@ const {
 // Chart data: refetch when the toggle or the commodity changes
 const { data: history, loading: historyLoading } = useFetch(
   () => getCommodityHistory(id.value, days.value),
-  { watch: [id, days] },
+  { watch: [id, days] }
 )
 
 // Cheapest locations: wait for the location result, then refetch when it changes
@@ -39,7 +39,7 @@ const { data: marketsData, loading: marketsLoading } = useFetch(
       limit: 5,
     })
   },
-  { watch: [id, coords, status] },
+  { watch: [id, coords, status] }
 )
 
 const markets = computed(() => marketsData.value?.items ?? [])
@@ -156,9 +156,7 @@ const trendIcon = (trend: string) => (trend === 'UP' ? '🔺' : trend === 'DOWN'
         </div>
 
         <p v-if="marketsLoading || geoPending" class="muted">Mencari lokasi...</p>
-        <p v-else-if="markets.length === 0" class="muted">
-          Belum ada harga di sekitar lokasi ini.
-        </p>
+        <p v-else-if="markets.length === 0" class="muted">Belum ada harga di sekitar lokasi ini.</p>
 
         <ul v-else class="market-list">
           <li v-for="item in markets" :key="item.market.id">

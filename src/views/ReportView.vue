@@ -33,7 +33,7 @@ const { data: markets, loading: loadingMarkets } = useFetch(
     if (geoPending.value) return []
     return getNearbyMarkets({ lat: origin.value.lat, lon: origin.value.lon, radius: 5, limit: 20 })
   },
-  { watch: [coords, status] },
+  { watch: [coords, status] }
 )
 
 // Form state
@@ -55,7 +55,7 @@ watch(commodities, (list) => {
 const { data: reference } = useFetch(
   async (): Promise<CommodityDetail | null> =>
     commodityId.value === '' ? null : getCommodityDetail(commodityId.value),
-  { watch: [commodityId] },
+  { watch: [commodityId] }
 )
 
 const MIN_PRICE = 100
@@ -64,7 +64,7 @@ const MAX_PRICE = 10_000_000
 const price = computed(() => Number(priceText.value.replace(/\D/g, '')) || 0)
 const priceValid = computed(() => price.value >= MIN_PRICE && price.value <= MAX_PRICE)
 const canSubmit = computed(
-  () => commodityId.value !== '' && marketId.value !== '' && priceValid.value && !submitting.value,
+  () => commodityId.value !== '' && marketId.value !== '' && priceValid.value && !submitting.value
 )
 
 const unit = computed(() => commodities.value?.find((c) => c.id === commodityId.value)?.unit ?? '')

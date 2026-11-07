@@ -13,7 +13,7 @@ export const DEFAULT_CENTER: Coords = { lat: -6.9175, lon: 107.6191 }
 // Module-level state: every component shares the same location
 const coords = ref<Coords | null>(null)
 const status = ref<GeoStatus>('idle')
-const label = ref<string | null>(null)   // district name when chosen manually
+const label = ref<string | null>(null) // district name when chosen manually
 
 export function useGeolocation() {
   function request(): Promise<void> {
@@ -34,7 +34,7 @@ export function useGeolocation() {
           status.value = err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable'
           resolve()
         },
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
       )
     })
   }
@@ -53,7 +53,7 @@ export function useGeolocation() {
 
   const hasLocation = computed(() => coords.value !== null)
   const needsManualPick = computed(
-    () => status.value === 'denied' || status.value === 'unavailable',
+    () => status.value === 'denied' || status.value === 'unavailable'
   )
 
   return { coords, status, label, hasLocation, needsManualPick, request, ensure, setManual }

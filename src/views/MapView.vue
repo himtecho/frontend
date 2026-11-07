@@ -44,7 +44,7 @@ const {
       ...(selectedTypes.value.length ? { type: [...selectedTypes.value] } : {}),
     })
   },
-  { watch: [coords, status, radius, selectedTypes] },
+  { watch: [coords, status, radius, selectedTypes] }
 )
 
 const markets = computed(() => data.value ?? [])
@@ -96,7 +96,6 @@ function formatMarketType(type: MarketType) {
 }
 
 const formatPrice = (price: number) => `Rp ${price.toLocaleString('id-ID')}`
-const formatKm = (km: number | null | undefined) => (km == null ? '-' : `${km.toFixed(1)} km`)
 
 function selectMarket(market: Market) {
   selectedMarket.value = market

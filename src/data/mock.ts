@@ -77,7 +77,9 @@ export const mockMarkets: Market[] = [
     distanceKm: 2.4,
     openHours: '08:00-12:00',
     isOpenNow: null,
-    topPrices: [{ commodityId: 1, name: 'Beras Kualitas Medium I', unit: 'kg', price: 14700, source: 'SEED' }],
+    topPrices: [
+      { commodityId: 1, name: 'Beras Kualitas Medium I', unit: 'kg', price: 14700, source: 'SEED' },
+    ],
   },
   {
     id: 3,
@@ -113,15 +115,86 @@ const dayStr = (offset: number) => {
 }
 const at = (offset: number, hhmm: string) => `${dayStr(offset)}T${hhmm}:00+07:00`
 
-const gasibu = { id: 2, name: '[Contoh] Lapangan Gasibu', address: null, latitude: -6.9007, longitude: 107.6169 }
-const alun = { id: 5, name: '[Contoh] Alun-alun Bandung', address: null, latitude: -6.9218, longitude: 107.6071 }
-const tegallega = { id: 6, name: '[Contoh] Lapangan Tegallega', address: null, latitude: -6.9341, longitude: 107.6031 }
-const base = { organizer: 'Dinas Perdagangan (contoh)', description: 'Sembako bersubsidi untuk warga. Data contoh.' }
+const gasibu = {
+  id: 2,
+  name: '[Contoh] Lapangan Gasibu',
+  address: null,
+  latitude: -6.9007,
+  longitude: 107.6169,
+}
+const alun = {
+  id: 5,
+  name: '[Contoh] Alun-alun Bandung',
+  address: null,
+  latitude: -6.9218,
+  longitude: 107.6071,
+}
+const tegallega = {
+  id: 6,
+  name: '[Contoh] Lapangan Tegallega',
+  address: null,
+  latitude: -6.9341,
+  longitude: 107.6031,
+}
+const base = {
+  organizer: 'Dinas Perdagangan (contoh)',
+  description: 'Sembako bersubsidi untuk warga. Data contoh.',
+}
 
 export const mockEvents: MarketEvent[] = [
-  { ...base, id: 1, title: '[Contoh] Pasar Murah Gasibu', startAt: at(0, '00:01'), endAt: at(0, '23:59'), status: 'ONGOING', daysUntil: 0, distanceKm: 2.4, market: gasibu },
-  { ...base, id: 2, title: '[Contoh] Pasar Murah Alun-alun', startAt: at(2, '08:00'), endAt: at(2, '12:00'), status: 'UPCOMING', daysUntil: 2, distanceKm: 1.8, market: alun },
-  { ...base, id: 3, title: '[Contoh] Pasar Murah Akhir Pekan', startAt: at(5, '08:00'), endAt: at(5, '12:00'), status: 'UPCOMING', daysUntil: 5, distanceKm: 4.5, market: tegallega },
-  { ...base, id: 4, title: '[Contoh] Pasar Murah Tegallega', startAt: at(9, '07:00'), endAt: at(9, '11:00'), status: 'UPCOMING', daysUntil: 9, distanceKm: 4.5, market: tegallega },
-  { ...base, id: 5, title: '[Contoh] Pasar Murah (Sudah Selesai)', startAt: at(-3, '08:00'), endAt: at(-3, '12:00'), status: 'ENDED', daysUntil: null, distanceKm: 2.4, market: gasibu },
+  {
+    ...base,
+    id: 1,
+    title: '[Contoh] Pasar Murah Gasibu',
+    startAt: at(0, '00:01'),
+    endAt: at(0, '23:59'),
+    status: 'ONGOING',
+    daysUntil: 0,
+    distanceKm: 2.4,
+    market: gasibu,
+  },
+  {
+    ...base,
+    id: 2,
+    title: '[Contoh] Pasar Murah Alun-alun',
+    startAt: at(2, '08:00'),
+    endAt: at(2, '12:00'),
+    status: 'UPCOMING',
+    daysUntil: 2,
+    distanceKm: 1.8,
+    market: alun,
+  },
+  {
+    ...base,
+    id: 3,
+    title: '[Contoh] Pasar Murah Akhir Pekan',
+    startAt: at(5, '08:00'),
+    endAt: at(5, '12:00'),
+    status: 'UPCOMING',
+    daysUntil: 5,
+    distanceKm: 4.5,
+    market: tegallega,
+  },
+  {
+    ...base,
+    id: 4,
+    title: '[Contoh] Pasar Murah Tegallega',
+    startAt: at(9, '07:00'),
+    endAt: at(9, '11:00'),
+    status: 'UPCOMING',
+    daysUntil: 9,
+    distanceKm: 4.5,
+    market: tegallega,
+  },
+  {
+    ...base,
+    id: 5,
+    title: '[Contoh] Pasar Murah (Sudah Selesai)',
+    startAt: at(-3, '08:00'),
+    endAt: at(-3, '12:00'),
+    status: 'ENDED',
+    daysUntil: null,
+    distanceKm: 2.4,
+    market: gasibu,
+  },
 ]

@@ -28,14 +28,20 @@ const loading = ref(false)
 const errorMessage = ref('')
 let requestId = 0 // ignore stale responses when the user switches chips quickly
 
-const selectedCommodity = computed(() => commodities.value.find((c) => c.id === selectedId.value) ?? null)
+const selectedCommodity = computed(
+  () => commodities.value.find((c) => c.id === selectedId.value) ?? null
+)
 
 const distOf = (i: CommodityMarketItem) => i.market.distanceKm ?? Number.POSITIVE_INFINITY
-const byPrice = (a: CommodityMarketItem, b: CommodityMarketItem) => a.price - b.price || distOf(a) - distOf(b)
-const byDistance = (a: CommodityMarketItem, b: CommodityMarketItem) => distOf(a) - distOf(b) || a.price - b.price
+const byPrice = (a: CommodityMarketItem, b: CommodityMarketItem) =>
+  a.price - b.price || distOf(a) - distOf(b)
+const byDistance = (a: CommodityMarketItem, b: CommodityMarketItem) =>
+  distOf(a) - distOf(b) || a.price - b.price
 
 const items = computed(() => result.value?.items ?? [])
-const sortedItems = computed(() => [...items.value].sort(sortBy.value === 'price' ? byPrice : byDistance))
+const sortedItems = computed(() =>
+  [...items.value].sort(sortBy.value === 'price' ? byPrice : byDistance)
+)
 const cheapestId = computed(() => [...items.value].sort(byPrice)[0]?.market.id ?? null)
 
 function savingText(item: CommodityMarketItem): string | null {
@@ -52,7 +58,9 @@ function savingText(item: CommodityMarketItem): string | null {
 function routeUrl(item: CommodityMarketItem) {
   const { latitude, longitude, name } = item.market
   const destination =
-    latitude != null && longitude != null ? `${latitude},${longitude}` : encodeURIComponent(`${name} Bandung`)
+    latitude != null && longitude != null
+      ? `${latitude},${longitude}`
+      : encodeURIComponent(`${name} Bandung`)
   return `https://www.google.com/maps/dir/?api=1&destination=${destination}`
 }
 
@@ -153,10 +161,18 @@ onMounted(init)
         </div>
         <div class="control-group">
           <span class="label">Urutkan</span>
-          <button class="chip small" :class="{ selected: sortBy === 'price' }" @click="sortBy = 'price'">
+          <button
+            class="chip small"
+            :class="{ selected: sortBy === 'price' }"
+            @click="sortBy = 'price'"
+          >
             Termurah
           </button>
-          <button class="chip small" :class="{ selected: sortBy === 'distance' }" @click="sortBy = 'distance'">
+          <button
+            class="chip small"
+            :class="{ selected: sortBy === 'distance' }"
+            @click="sortBy = 'distance'"
+          >
             Terdekat
           </button>
         </div>
@@ -166,8 +182,9 @@ onMounted(init)
         📍 Memakai pusat Kota Bandung (lokasimu belum tersedia atau izin ditolak).
       </p>
       <p v-if="result && selectedCommodity" class="reference">
-        Harga acuan kota: <strong>{{ rupiah(result.reference.price) }}/{{ selectedCommodity.unit }}</strong>
-        · {{ result.reference.sourceLabel }}
+        Harga acuan kota:
+        <strong>{{ rupiah(result.reference.price) }}/{{ selectedCommodity.unit }}</strong> ·
+        {{ result.reference.sourceLabel }}
       </p>
 
       <div v-if="loading" class="state-card">
@@ -185,7 +202,9 @@ onMounted(init)
         <span>📭</span>
         <h3>Tidak ada lokasi dalam radius {{ radius }} km</h3>
         <p>Data saat ini baru mencakup Kota Bandung.</p>
-        <button v-if="!usingDefaultLocation" @click="useCityCenter">Pakai pusat Kota Bandung</button>
+        <button v-if="!usingDefaultLocation" @click="useCityCenter">
+          Pakai pusat Kota Bandung
+        </button>
       </div>
 
       <ol v-else class="result-list">
@@ -207,14 +226,17 @@ onMounted(init)
           <p v-if="savingText(item)" class="saving">{{ savingText(item) }}</p>
 
           <div class="meta-row">
-            <span v-if="item.market.distanceKm != null">🚶 {{ formatDistance(item.market.distanceKm) }}</span>
+            <span v-if="item.market.distanceKm != null"
+              >🚶 {{ formatDistance(item.market.distanceKm) }}</span
+            >
             <a :href="routeUrl(item)" target="_blank" rel="noopener">Lihat rute →</a>
           </div>
         </li>
       </ol>
 
       <p class="note">
-        Harga berlabel “Estimasi” adalah perkiraan dari harga acuan kota, bukan harga yang dicek langsung di lokasi.
+        Harga berlabel “Estimasi” adalah perkiraan dari harga acuan kota, bukan harga yang dicek
+        langsung di lokasi.
       </p>
     </section>
   </main>

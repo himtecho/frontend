@@ -1,8 +1,8 @@
 import { ref, shallowRef, watch, type WatchSource } from 'vue'
 
 interface UseFetchOptions {
-  immediate?: boolean          // run once on creation (default: true)
-  watch?: WatchSource[]        // refetch when any of these change
+  immediate?: boolean // run once on creation (default: true)
+  watch?: WatchSource[] // refetch when any of these change
 }
 
 export function useFetch<T>(fetcher: () => Promise<T>, options: UseFetchOptions = {}) {
@@ -10,7 +10,7 @@ export function useFetch<T>(fetcher: () => Promise<T>, options: UseFetchOptions 
 
   const data = shallowRef<T | null>(null)
   const error = ref<string | null>(null)
-  const loading = ref(immediate)   // true from the start to avoid an empty-state flash
+  const loading = ref(immediate) // true from the start to avoid an empty-state flash
   let requestId = 0
 
   async function execute() {
@@ -19,7 +19,7 @@ export function useFetch<T>(fetcher: () => Promise<T>, options: UseFetchOptions 
     error.value = null
     try {
       const result = await fetcher()
-      if (id !== requestId) return   // a newer request started; ignore this result
+      if (id !== requestId) return // a newer request started; ignore this result
       data.value = result
     } catch (e) {
       if (id !== requestId) return
