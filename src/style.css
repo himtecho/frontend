@@ -1,0 +1,519 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* =====================================
+   GLOBAL
+===================================== */
+
+:root {
+  font-family: 'Inter', sans-serif;
+  color: #25382e;
+  background: #f5f7f2;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+
+  --green-dark: #174b35;
+  --green: #389568;
+  --green-light: #e6f3e9;
+  --yellow: #f4bd4f;
+  --background: #f5f7f2;
+  --white: #ffffff;
+  --text: #25382e;
+  --muted: #829087;
+  --red: #dc4444;
+  --border: #e9eee8;
+  --shadow: 0 5px 20px rgba(23, 75, 53, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--background);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* =====================================
+   HOME LAYOUT
+===================================== */
+
+.home-view {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 28px 60px;
+}
+
+.home-view section {
+  margin-bottom: 30px;
+}
+
+/* =====================================
+   WELCOME
+===================================== */
+
+.welcome {
+  background: linear-gradient(120deg, #174b35, #32865b);
+  color: white;
+  padding: 34px;
+  border-radius: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome::after {
+  content: '🌾';
+  position: absolute;
+  right: 35px;
+  bottom: 10px;
+  font-size: 100px;
+  opacity: 0.16;
+}
+
+.greeting {
+  color: #f4d98d;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.welcome h2 {
+  max-width: 520px;
+  font-size: 30px;
+  line-height: 1.3;
+  margin: 0 0 12px;
+}
+
+.welcome > p:last-child {
+  max-width: 500px;
+  color: #e0eee5;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+/* =====================================
+   SEARCH
+===================================== */
+
+.search-section {
+  margin-top: 24px;
+}
+
+.search-section input {
+  width: 100%;
+  padding: 16px 20px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  outline: none;
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.search-section input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(56, 149, 104, 0.12);
+}
+
+/* =====================================
+   SECTION HEADING
+===================================== */
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 16px;
+}
+
+.section-heading h2,
+.movement-section > h2,
+.events-section > h2 {
+  color: var(--green-dark);
+  font-size: 21px;
+  margin: 0 0 7px;
+}
+
+.section-heading p,
+.section-description {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.mock-label {
+  background: #fff2d4;
+  color: #986b12;
+  padding: 7px 11px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.updated-time {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+/* =====================================
+   PRICE CARDS
+===================================== */
+
+.price-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.price-card {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 20px 16px;
+  border-radius: 17px;
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.price-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(23, 75, 53, 0.1);
+}
+
+.price-card h3 {
+  font-size: 14px;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+
+.price-card h2 {
+  color: var(--green-dark);
+  font-size: 21px;
+  margin: 0 0 5px;
+}
+
+.price-card p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 9px;
+}
+
+.price-card small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.price-up {
+  color: var(--red) !important;
+  font-weight: 700;
+}
+
+.price-down {
+  color: var(--green) !important;
+  font-weight: 700;
+}
+
+.price-stable {
+  color: var(--muted) !important;
+  font-weight: 700;
+}
+
+/* =====================================
+   PRICE MOVEMENT
+===================================== */
+
+.movement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.movement-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+
+.movement-card h3 {
+  color: var(--green-dark);
+  font-size: 15px;
+  margin: 0 0 15px;
+}
+
+.movement-card p {
+  padding: 10px 0;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.movement-card p:last-child {
+  border-bottom: none;
+}
+
+/* =====================================
+   NEARBY MARKETS
+===================================== */
+
+.see-more {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.market-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.market-item {
+  background: white;
+  padding: 19px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: 0.2s;
+}
+
+.market-item:hover {
+  border-color: #b7dbc3;
+}
+
+.market-item h3 {
+  color: var(--green-dark);
+  font-size: 15px;
+  margin: 0 0 9px;
+}
+
+.market-item p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 5px 0;
+  line-height: 1.5;
+}
+
+/* =====================================
+   PROMO BANNER
+===================================== */
+
+.promo {
+  background: #fff0c9;
+  border: 1px solid #f5df9d;
+  padding: 30px;
+  border-radius: 21px;
+}
+
+.promo-tag {
+  color: #a87917;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.promo h2 {
+  color: var(--green-dark);
+  font-size: 23px;
+  line-height: 1.4;
+  max-width: 550px;
+}
+
+.promo > p:not(.promo-tag) {
+  color: #796a48;
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 550px;
+}
+
+.promo button {
+  background: var(--green-dark);
+  color: white;
+  border: none;
+  border-radius: 11px;
+  padding: 14px 20px;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: 0.2s;
+}
+
+.promo button:hover {
+  background: var(--green);
+  transform: translateY(-2px);
+}
+
+/* =====================================
+   EVENTS
+===================================== */
+
+.event-card {
+  background: white;
+  border-left: 4px solid var(--yellow);
+  border-radius: 14px;
+  padding: 20px;
+  margin-top: 17px;
+  box-shadow: var(--shadow);
+}
+
+.event-card h3 {
+  color: var(--green-dark);
+  font-size: 16px;
+  margin: 0 0 13px;
+}
+
+.event-card p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 7px 0;
+}
+
+/* =====================================
+   FOOTER
+===================================== */
+
+.footer {
+  text-align: center;
+  padding: 24px 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin-top: 35px;
+}
+
+/* =====================================
+   LOADING & ERROR
+===================================== */
+
+.loading-state,
+.error-state {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--green-dark);
+}
+
+.error-state button {
+  background: var(--green-dark);
+  color: white;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 9px;
+  margin-top: 10px;
+}
+
+/* =====================================
+   RESPONSIVE TABLET
+===================================== */
+
+@media (max-width: 800px) {
+  .home-view {
+    padding: 24px 20px 45px;
+  }
+
+  .price-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* =====================================
+   RESPONSIVE MOBILE
+===================================== */
+
+@media (max-width: 480px) {
+  .home-view {
+    padding: 18px 15px 35px;
+  }
+
+  .home-view section {
+    margin-bottom: 24px;
+  }
+
+  .welcome {
+    padding: 25px 21px;
+    border-radius: 19px;
+  }
+
+  .welcome h2 {
+    font-size: 23px;
+  }
+
+  .welcome::after {
+    right: 12px;
+    bottom: 8px;
+    font-size: 65px;
+  }
+
+  .section-heading h2,
+  .movement-section > h2,
+  .events-section > h2 {
+    font-size: 18px;
+  }
+
+  .price-grid {
+    gap: 10px;
+  }
+
+  .price-card {
+    padding: 16px 12px;
+    border-radius: 14px;
+  }
+
+  .price-card h2 {
+    font-size: 18px;
+  }
+
+  .price-card h3 {
+    font-size: 13px;
+  }
+
+  .movement-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .movement-card {
+    padding: 18px;
+  }
+
+  .promo {
+    padding: 23px 19px;
+  }
+
+  .promo h2 {
+    font-size: 20px;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+  }
+}
