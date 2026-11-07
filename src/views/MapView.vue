@@ -30,11 +30,7 @@ const districtIndex = ref<number | ''>('')
 const sheetEl = ref<HTMLElement | null>(null)
 
 // Each type gets a distinct icon (the map markers must use the same shape/color mapping)
-type MarketIcon =
-  | 'market-traditional'
-  | 'market-cheap'
-  | 'market-store'
-  | 'market-supermarket'
+type MarketIcon = 'market-traditional' | 'market-cheap' | 'market-store' | 'market-supermarket'
 
 const marketTypes: { label: string; value: MarketType; icon: MarketIcon }[] = [
   { label: 'Pasar Tradisional', value: 'TRADITIONAL', icon: 'market-traditional' },
@@ -94,7 +90,9 @@ const locationMessage = computed(() => {
       return 'Sedang mendeteksi lokasi...'
   }
 })
-const locationIsProblem = computed(() => status.value === 'denied' || status.value === 'unavailable')
+const locationIsProblem = computed(
+  () => status.value === 'denied' || status.value === 'unavailable'
+)
 
 function pickDistrict() {
   if (districtIndex.value === '') return
@@ -132,7 +130,8 @@ function formatDistance(km: number | null | undefined) {
 }
 
 function openStatus(m: Market) {
-  if (m.isOpenNow === null || m.isOpenNow === undefined) return { text: 'Jam belum diketahui', tone: 'unknown' }
+  if (m.isOpenNow === null || m.isOpenNow === undefined)
+    return { text: 'Jam belum diketahui', tone: 'unknown' }
   return m.isOpenNow ? { text: 'Buka', tone: 'open' } : { text: 'Tutup', tone: 'closed' }
 }
 
@@ -703,7 +702,9 @@ const selectedHasSeed = computed(
 }
 .row.selected {
   background: var(--brand-tint);
-  box-shadow: -16px 0 0 var(--brand-tint), 16px 0 0 var(--brand-tint);
+  box-shadow:
+    -16px 0 0 var(--brand-tint),
+    16px 0 0 var(--brand-tint);
 }
 .row-icon {
   display: grid;
