@@ -1,12 +1,14 @@
+
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { getCommodities, getCommodityMarkets, isApiError } from '../services/api'
 import { formatDistance } from '../utils/datetime'
 import type { Commodity, CommodityMarketItem, CommodityMarkets, MarketType } from '../types/api'
 
-// Data currently covers Bandung only, so the fallback location is the city center
+// Data saat ini mencakup Bandung, sehingga lokasi cadangan menggunakan pusat kota.
 const DEFAULT_CENTER = { lat: -6.9175, lon: 107.6191 }
 const RADIUS_OPTIONS = [1, 3, 5] as const
+
 const TYPE_LABEL: Record<MarketType, string> = {
   TRADITIONAL: 'Pasar tradisional',
   CHEAP_MARKET: 'Pasar murah',
@@ -25,55 +27,71 @@ const usingDefaultLocation = ref(true)
 
 const result = ref<CommodityMarkets | null>(null)
 const loading = ref(false)
+const initializing = ref(true)
 const errorMessage = ref('')
-let requestId = 0 // ignore stale responses when the user switches chips quickly
+let requestId = 0
 
 const selectedCommodity = computed(
   () => commodities.value.find((c) => c.id === selectedId.value) ?? null
 )
 
-const distOf = (i: CommodityMarketItem) => i.market.distanceKm ?? Number.POSITIVE_INFINITY
+const distOf = (item: CommodityMarketItem) =>
+  item.market.distanceKm ?? Number.POSITIVE_INFINITY
+
 const byPrice = (a: CommodityMarketItem, b: CommodityMarketItem) =>
   a.price - b.price || distOf(a) - distOf(b)
+
 const byDistance = (a: CommodityMarketItem, b: CommodityMarketItem) =>
   distOf(a) - distOf(b) || a.price - b.price
 
 const items = computed(() => result.value?.items ?? [])
+
 const sortedItems = computed(() =>
   [...items.value].sort(sortBy.value === 'price' ? byPrice : byDistance)
 )
+
 const cheapestId = computed(() => [...items.value].sort(byPrice)[0]?.market.id ?? null)
 
 function savingText(item: CommodityMarketItem): string | null {
-  const ref = result.value?.reference.price
-  if (ref == null) return null
-  const diff = ref - item.price
-  if (diff === 0) return null
-  const pct = Math.round((Math.abs(diff) / ref) * 100)
-  return diff > 0
-    ? `Hemat ${rupiah(diff)} (${pct}%) dari harga acuan kota`
-    : `${rupiah(-diff)} (${pct}%) di atas harga acuan kota`
+  const referencePrice = result.value?.reference.price
+
+  if (referencePrice == null || referencePrice === 0) return null
+
+  const difference = referencePrice - item.price
+  if (difference === 0) return null
+
+  const percentage = Math.round((Math.abs(difference) / referencePrice) * 100)
+
+  return difference > 0
+    ? `Hemat ${rupiah(difference)} (${percentage}%) dari harga acuan kota`
+    : `${rupiah(-difference)} (${percentage}%) di atas harga acuan kota`
 }
 
 function routeUrl(item: CommodityMarketItem) {
   const { latitude, longitude, name } = item.market
+
   const destination =
     latitude != null && longitude != null
       ? `${latitude},${longitude}`
       : encodeURIComponent(`${name} Bandung`)
+
   return `https://www.google.com/maps/dir/?api=1&destination=${destination}`
 }
 
 function locate(): Promise<void> {
   return new Promise((resolve) => {
     if (!('geolocation' in navigator)) return resolve()
+
     navigator.geolocation.getCurrentPosition(
-      (p) => {
-        position.value = { lat: p.coords.latitude, lon: p.coords.longitude }
+      (positionResult) => {
+        position.value = {
+          lat: positionResult.coords.latitude,
+          lon: positionResult.coords.longitude,
+        }
         usingDefaultLocation.value = false
         resolve()
       },
-      () => resolve(), // denied or unavailable: keep the default center
+      () => resolve(),
       { timeout: 8000 }
     )
   })
@@ -81,20 +99,25 @@ function locate(): Promise<void> {
 
 async function load() {
   if (selectedId.value == null) return
+
   const id = ++requestId
   loading.value = true
   errorMessage.value = ''
+
   try {
-    const res = await getCommodityMarkets(selectedId.value, {
+    const response = await getCommodityMarkets(selectedId.value, {
       lat: position.value.lat,
       lon: position.value.lon,
       radius: radius.value,
       limit: 30,
     })
-    if (id === requestId) result.value = res
+
+    if (id === requestId) result.value = response
   } catch (error) {
     if (id === requestId) {
-      errorMessage.value = isApiError(error) ? error.message : 'Gagal memuat daftar harga.'
+      errorMessage.value = isApiError(error)
+        ? error.message
+        : 'Gagal memuat daftar harga. Silakan coba lagi.'
     }
   } finally {
     if (id === requestId) loading.value = false
@@ -109,11 +132,16 @@ function useCityCenter() {
 
 async function init() {
   await locate()
+
   try {
     commodities.value = await getCommodities()
-    selectedId.value = commodities.value[0]?.id ?? null // triggers load() via the watcher
+    selectedId.value = commodities.value[0]?.id ?? null
   } catch (error) {
-    errorMessage.value = isApiError(error) ? error.message : 'Gagal memuat daftar komoditas.'
+    errorMessage.value = isApiError(error)
+      ? error.message
+      : 'Gagal memuat daftar bahan pokok.'
+  } finally {
+    initializing.value = false
   }
 }
 
@@ -123,372 +151,857 @@ onMounted(init)
 
 <template>
   <main class="cheapest-page">
-    <header class="page-header">
-      <div class="header-content">
-        <span class="eyebrow">CARI TERMURAH</span>
-        <h1>Pasar Termurah di Sekitarmu</h1>
-        <p>Pilih bahan pokok, lalu lihat pasar atau toko terdekat dengan harga paling murah.</p>
-      </div>
-      <div class="header-icon">🛒</div>
-    </header>
+    <div class="page-container">
+      <header class="page-header">
+        <div class="header-copy">
+          <span class="eyebrow">INFORMASI HARGA PANGAN</span>
+          <h1>Temukan Harga Terbaik di Sekitarmu</h1>
+          <p>
+            Bandingkan harga bahan pokok di pasar dan toko sekitar agar belanja lebih hemat.
+          </p>
+        </div>
 
-    <section class="content">
-      <h2 class="label">Pilih bahan pokok</h2>
-      <div class="chip-row">
-        <button
-          v-for="c in commodities"
-          :key="c.id"
-          class="chip"
-          :class="{ selected: c.id === selectedId }"
-          @click="selectedId = c.id"
-        >
-          {{ c.name }}
-        </button>
-      </div>
+        <div class="header-symbol" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none">
+            <path
+              d="M8 17h32l-3 24H11L8 17Z"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+            />
+            <path
+              d="m16 17 8-10 8 10M17 25v9M24 25v9M31 25v9"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+      </header>
 
-      <div class="controls">
-        <div class="control-group">
-          <span class="label">Radius</span>
+      <section class="filter-section" aria-labelledby="commodity-heading">
+        <div class="section-heading">
+          <div>
+            <span class="section-kicker">01 / PILIH KOMODITAS</span>
+            <h2 id="commodity-heading">Apa yang ingin kamu beli?</h2>
+          </div>
+          <span class="section-caption">Pilih satu bahan pokok</span>
+        </div>
+
+        <div v-if="commodities.length" class="commodity-list">
           <button
-            v-for="r in RADIUS_OPTIONS"
-            :key="r"
-            class="chip small"
-            :class="{ selected: r === radius }"
-            @click="radius = r"
+            v-for="commodity in commodities"
+            :key="commodity.id"
+            class="commodity-chip"
+            :class="{ 'is-selected': commodity.id === selectedId }"
+            :aria-pressed="commodity.id === selectedId"
+            @click="selectedId = commodity.id"
           >
-            {{ r }} km
+            {{ commodity.name }}
           </button>
         </div>
-        <div class="control-group">
-          <span class="label">Urutkan</span>
-          <button
-            class="chip small"
-            :class="{ selected: sortBy === 'price' }"
-            @click="sortBy = 'price'"
-          >
-            Termurah
-          </button>
-          <button
-            class="chip small"
-            :class="{ selected: sortBy === 'distance' }"
-            @click="sortBy = 'distance'"
-          >
-            Terdekat
-          </button>
+
+        <div v-else-if="initializing" class="loading-copy">
+          Memuat daftar bahan pokok...
         </div>
-      </div>
+        <div v-else-if="!errorMessage" class="empty-copy">
+          Belum ada pilihan bahan pokok yang tersedia.
+        </div>
+      </section>
 
-      <p v-if="usingDefaultLocation" class="hint">
-        📍 Memakai pusat Kota Bandung (lokasimu belum tersedia atau izin ditolak).
-      </p>
-      <p v-if="result && selectedCommodity" class="reference">
-        Harga acuan kota:
-        <strong>{{ rupiah(result.reference.price) }}/{{ selectedCommodity.unit }}</strong> ·
-        {{ result.reference.sourceLabel }}
-      </p>
-
-      <div v-if="loading" class="state-card">
-        <div class="loader"></div>
-        <p>Mencari harga termurah...</p>
-      </div>
-
-      <div v-else-if="errorMessage" class="state-card">
-        <span>⚠️</span>
-        <p>{{ errorMessage }}</p>
-        <button @click="load">Coba lagi</button>
-      </div>
-
-      <div v-else-if="result && sortedItems.length === 0" class="state-card">
-        <span>📭</span>
-        <h3>Tidak ada lokasi dalam radius {{ radius }} km</h3>
-        <p>Data saat ini baru mencakup Kota Bandung.</p>
-        <button v-if="!usingDefaultLocation" @click="useCityCenter">
-          Pakai pusat Kota Bandung
-        </button>
-      </div>
-
-      <ol v-else class="result-list">
-        <li v-for="(item, index) in sortedItems" :key="item.market.id" class="result-card">
-          <div class="card-top">
-            <span class="rank">{{ index + 1 }}</span>
-            <span class="type-tag">{{ TYPE_LABEL[item.market.type] }}</span>
-            <span v-if="item.market.id === cheapestId" class="best-badge">Termurah</span>
-          </div>
-
-          <h3>{{ item.market.name }}</h3>
-
-          <div class="price-row">
-            <span class="price">{{ rupiah(item.price) }}</span>
-            <span class="unit">/{{ selectedCommodity?.unit }}</span>
-            <span class="source" :class="item.source.toLowerCase()">{{ item.sourceLabel }}</span>
-          </div>
-
-          <p v-if="savingText(item)" class="saving">{{ savingText(item) }}</p>
-
-          <div class="meta-row">
-            <span v-if="item.market.distanceKm != null"
-              >🚶 {{ formatDistance(item.market.distanceKm) }}</span
+      <section class="filter-section settings-section" aria-label="Pengaturan pencarian">
+        <div class="setting-group">
+          <span class="setting-label">Jarak pencarian</span>
+          <div class="segmented-options">
+            <button
+              v-for="distance in RADIUS_OPTIONS"
+              :key="distance"
+              class="option-button"
+              :class="{ 'is-active': distance === radius }"
+              :aria-pressed="distance === radius"
+              @click="radius = distance"
             >
-            <a :href="routeUrl(item)" target="_blank" rel="noopener">Lihat rute →</a>
+              {{ distance }} km
+            </button>
           </div>
-        </li>
-      </ol>
+        </div>
 
-      <p class="note">
-        Harga berlabel “Estimasi” adalah perkiraan dari harga acuan kota, bukan harga yang dicek
-        langsung di lokasi.
-      </p>
-    </section>
+        <div class="setting-group">
+          <span class="setting-label">Urutkan berdasarkan</span>
+          <div class="segmented-options">
+            <button
+              class="option-button"
+              :class="{ 'is-active': sortBy === 'price' }"
+              :aria-pressed="sortBy === 'price'"
+              @click="sortBy = 'price'"
+            >
+              Harga terendah
+            </button>
+            <button
+              class="option-button"
+              :class="{ 'is-active': sortBy === 'distance' }"
+              :aria-pressed="sortBy === 'distance'"
+              @click="sortBy = 'distance'"
+            >
+              Jarak terdekat
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div v-if="usingDefaultLocation" class="location-notice">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path
+            d="M16 8.3c0 4.2-6 9-6 9s-6-4.8-6-9a6 6 0 1 1 12 0Z"
+            stroke="currentColor"
+            stroke-width="1.5"
+          />
+          <circle cx="10" cy="8" r="2" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+        <span>
+          Menggunakan pusat Kota Bandung karena lokasi perangkat belum tersedia.
+        </span>
+      </div>
+
+      <section v-if="result && selectedCommodity" class="reference-strip">
+        <div>
+          <span class="reference-label">HARGA ACUAN KOTA</span>
+          <p class="reference-price">
+            {{ rupiah(result.reference.price) }}
+            <span>/ {{ selectedCommodity.unit }}</span>
+          </p>
+        </div>
+        <span class="reference-source">{{ result.reference.sourceLabel }}</span>
+      </section>
+
+      <section class="results-section" aria-labelledby="results-heading">
+        <div class="results-heading">
+          <div>
+            <span class="section-kicker">02 / HASIL PENCARIAN</span>
+            <h2 id="results-heading">Pilihan pasar untukmu</h2>
+          </div>
+
+          <span v-if="!loading && result" class="result-count">
+            {{ sortedItems.length }} lokasi
+          </span>
+        </div>
+
+        <div v-if="initializing || loading" class="state-panel" aria-live="polite">
+          <span class="loader" aria-hidden="true"></span>
+          <h3>Sedang mencari harga</h3>
+          <p>Kami sedang membandingkan harga di sekitar lokasimu.</p>
+        </div>
+
+        <div v-else-if="errorMessage" class="state-panel" role="alert">
+          <div class="state-symbol" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path
+                d="M16 4 29 27H3L16 4Z"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M16 12v7m0 3v.5"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <h3>Belum berhasil memuat data</h3>
+          <p>{{ errorMessage }}</p>
+          <button class="retry-button" @click="load">Coba lagi</button>
+        </div>
+
+        <div v-else-if="result && sortedItems.length === 0" class="state-panel">
+          <div class="state-symbol" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <circle cx="14" cy="14" r="9" stroke="currentColor" stroke-width="1.7" />
+              <path
+                d="m21 21 6 6M10 14h8"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <h3>Belum ada lokasi ditemukan</h3>
+          <p>
+            Belum ada data {{ selectedCommodity?.name ?? 'komoditas' }}
+            dalam radius {{ radius }} km. Coba perluas jarak pencarian.
+          </p>
+          <button
+            v-if="!usingDefaultLocation"
+            class="retry-button"
+            @click="useCityCenter"
+          >
+            Gunakan pusat Kota Bandung
+          </button>
+        </div>
+
+        <ol v-else-if="result" class="market-list">
+          <li
+            v-for="(item, index) in sortedItems"
+            :key="item.market.id"
+            class="market-item"
+            :class="{ 'is-cheapest': item.market.id === cheapestId }"
+          >
+            <div class="market-rank">
+              {{ String(index + 1).padStart(2, '0') }}
+            </div>
+
+            <div class="market-details">
+              <div class="market-overline">
+                <span class="market-type">{{ TYPE_LABEL[item.market.type] }}</span>
+                <span v-if="item.market.id === cheapestId" class="cheapest-label">
+                  TERMURAH
+                </span>
+              </div>
+
+              <h3>{{ item.market.name }}</h3>
+
+              <div class="market-meta">
+                <span v-if="item.market.distanceKm != null">
+                  {{ formatDistance(item.market.distanceKm) }} dari lokasimu
+                </span>
+                <span v-else>Jarak belum tersedia</span>
+                <span class="meta-dot" aria-hidden="true">·</span>
+                <span>{{ item.sourceLabel }}</span>
+              </div>
+
+              <p v-if="savingText(item)" class="saving-note">
+                {{ savingText(item) }}
+              </p>
+            </div>
+
+            <div class="market-price-block">
+              <span class="price-label">HARGA</span>
+              <p class="market-price">{{ rupiah(item.price) }}</p>
+              <span class="price-unit">/ {{ selectedCommodity?.unit }}</span>
+              <a
+                class="route-link"
+                :href="routeUrl(item)"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Lihat rute
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M3 13 13 3M5 3h8v8"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </a>
+            </div>
+          </li>
+        </ol>
+
+        <p v-if="result && sortedItems.length > 0" class="results-footnote">
+          Harga berlabel “Estimasi” merupakan perkiraan dari harga acuan kota,
+          bukan harga yang diperiksa langsung di lokasi.
+        </p>
+      </section>
+    </div>
   </main>
 </template>
 
 <style scoped>
 .cheapest-page {
+  --page-bg: #f8f8f3;
+  --surface: #fff;
+  --ink: #203b2d;
+  --muted: #718075;
+  --line: #e5e9e1;
+  --green: #245b3d;
+  --green-soft: #edf3ed;
+  --yellow: #f3d77a;
+  --yellow-ink: #69500b;
+
   min-height: 100vh;
-  padding-bottom: 100px;
-  background: #f6f9f3;
-  color: #203b2d;
+  padding: 32px 16px 112px;
+  color: var(--ink);
+  background: var(--page-bg);
+}
+
+.page-container {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 35px 7% 40px;
-  background: linear-gradient(135deg, #126b3b, #229653);
-  color: white;
-  border-radius: 0 0 28px 28px;
+  gap: 24px;
+  padding: 8px 0 28px;
+  border-bottom: 1px solid var(--line);
 }
-.eyebrow {
-  font-size: 11px;
+
+.header-copy {
+  max-width: 540px;
+}
+
+.eyebrow,
+.section-kicker,
+.reference-label,
+.price-label {
+  display: block;
+  color: var(--green);
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 2px;
-  color: #ffe28a;
+  letter-spacing: 1.5px;
 }
+
 .page-header h1 {
-  margin: 12px 0;
-  font-size: clamp(24px, 5vw, 34px);
+  margin: 12px 0 8px;
+  color: var(--ink);
+  font-size: clamp(27px, 5vw, 36px);
+  font-weight: 750;
+  letter-spacing: -1.2px;
+  line-height: 1.18;
 }
+
 .page-header p {
+  max-width: 470px;
   margin: 0;
-  color: #e3f4e8;
+  color: var(--muted);
   font-size: 14px;
-  line-height: 1.6;
-}
-.header-icon {
-  font-size: 52px;
+  line-height: 1.7;
 }
 
-.content {
-  width: min(900px, 90%);
-  margin: 26px auto;
-}
-.label {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #657469;
+.header-symbol {
+  display: grid;
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border: 1px solid #dce5da;
+  border-radius: 16px;
+  color: var(--green);
+  background: var(--green-soft);
 }
 
-.chip-row {
+.header-symbol svg {
+  width: 36px;
+  height: 36px;
+}
+
+.filter-section {
+  padding: 26px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.section-heading,
+.results-heading {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-}
-.chip {
-  flex: none;
-  padding: 9px 15px;
-  border: 1px solid #dce8dc;
-  border-radius: 30px;
-  background: white;
-  color: #657469;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.chip.small {
-  padding: 7px 12px;
-  font-size: 12px;
-}
-.chip.selected {
-  background: #16834a;
-  border-color: #16834a;
-  color: white;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-.controls {
+.section-heading h2,
+.results-heading h2 {
+  margin: 7px 0 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.4px;
+}
+
+.section-caption {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.commodity-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px 24px;
-  margin: 16px 0;
-}
-.control-group {
-  display: flex;
-  align-items: center;
   gap: 8px;
 }
-.control-group .label {
-  margin: 0;
-}
 
-.hint {
-  margin: 0 0 10px;
+.commodity-chip,
+.option-button {
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1px solid #dce4da;
+  border-radius: 999px;
+  color: #53675a;
+  background: var(--surface);
+  font: inherit;
   font-size: 12px;
-  color: #8a6d00;
-}
-.reference {
-  margin: 0 0 16px;
-  font-size: 13px;
-  color: #56675a;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
-.result-list {
-  list-style: none;
+.commodity-chip:hover,
+.option-button:hover {
+  border-color: #9db5a0;
+}
+
+.commodity-chip.is-selected,
+.option-button.is-active {
+  border-color: var(--green);
+  color: #fff;
+  background: var(--green);
+}
+
+.loading-copy,
+.empty-copy {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-section {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.setting-label {
+  color: #53675a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.segmented-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.option-button {
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 11px;
+}
+
+.location-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #e8e4d3;
+  border-radius: 10px;
+  color: #76652f;
+  background: #fbf8ed;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.location-notice svg {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.reference-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 15px 17px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.reference-label {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 1.2px;
+}
+
+.reference-price {
+  margin: 5px 0 0;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.reference-price span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.reference-source {
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.results-section {
+  padding-top: 30px;
+}
+
+.results-heading {
+  margin-bottom: 14px;
+}
+
+.result-count {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--green-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.market-list {
   margin: 0;
   padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.market-item {
   display: grid;
-  gap: 14px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 13px;
+  align-items: start;
+  padding: 20px 4px;
+  border-bottom: 1px solid var(--line);
 }
-.result-card {
-  padding: 18px;
-  border: 1px solid #e8eee5;
-  border-radius: 16px;
-  background: white;
-  box-shadow: 0 4px 15px rgba(32, 59, 45, 0.04);
+
+.market-rank {
+  padding-top: 3px;
+  color: #9aa69b;
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
 }
-.card-top {
+
+.market-details {
+  min-width: 0;
+}
+
+.market-overline {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
-.rank {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #e6f6eb;
-  color: #16834a;
-  font-size: 12px;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
+
+.market-type {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
 }
-.type-tag {
-  font-size: 12px;
-  color: #839087;
+
+.cheapest-label {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--yellow-ink);
+  background: var(--yellow);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.6px;
 }
-.best-badge {
-  margin-left: auto;
-  padding: 4px 10px;
-  border-radius: 20px;
-  background: #fff4cf;
-  color: #9b7200;
-  font-size: 11px;
-  font-weight: 800;
+
+.market-details h3 {
+  overflow-wrap: anywhere;
+  margin: 8px 0 6px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.4;
 }
-.result-card h3 {
-  margin: 10px 0 8px;
-  font-size: 17px;
-}
-.price-row {
+
+.market-meta {
   display: flex;
-  align-items: baseline;
   flex-wrap: wrap;
-  gap: 4px 6px;
-}
-.price {
-  font-size: 26px;
-  font-weight: 800;
-  color: #126b3b;
-}
-.unit {
-  font-size: 13px;
-  color: #839087;
-}
-.source {
-  margin-left: auto;
-  padding: 3px 9px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  background: #edf0ed;
-  color: #78817a;
-}
-.source.pihps {
-  background: #e3f0fb;
-  color: #1c5f9a;
-}
-.source.citizen {
-  background: #e6f6eb;
-  color: #16834a;
-}
-.source.seed {
-  background: #fff4cf;
-  color: #9b7200;
-}
-.saving {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: #16834a;
-}
-.meta-row {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #edf1eb;
-  font-size: 13px;
-  color: #56675a;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
 }
-.meta-row a {
-  color: #16834a;
-  font-weight: 700;
+
+.meta-dot {
+  color: #b0b9af;
+}
+
+.saving-note {
+  margin: 8px 0 0;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.market-price-block {
+  min-width: 120px;
+  text-align: right;
+}
+
+.price-label {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.market-price {
+  margin: 5px 0 0;
+  color: var(--green);
+  font-size: clamp(17px, 3vw, 21px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+.price-unit {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.route-link {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 7px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 750;
   text-decoration: none;
 }
 
-.state-card {
-  padding: 36px 20px;
-  border-radius: 16px;
-  background: white;
+.route-link:hover {
+  text-decoration: underline;
+}
+
+.route-link svg {
+  width: 13px;
+  height: 13px;
+}
+
+.results-footnote {
+  margin: 18px 0 0;
+  color: #89958b;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.state-panel {
+  display: flex;
+  min-height: 210px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
   text-align: center;
-  color: #758278;
 }
-.state-card > span {
-  font-size: 30px;
+
+.state-panel h3 {
+  margin: 12px 0 5px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 750;
 }
-.state-card h3 {
-  color: #203b2d;
+
+.state-panel p {
+  max-width: 360px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
 }
-.state-card button {
-  padding: 9px 18px;
-  border: none;
-  border-radius: 9px;
-  background: #16834a;
-  color: white;
+
+.state-symbol {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.state-symbol svg {
+  width: 25px;
+  height: 25px;
+}
+
+.retry-button {
+  min-height: 42px;
+  margin-top: 16px;
+  padding: 9px 17px;
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  color: #fff;
+  background: var(--green);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
 }
+
 .loader {
-  width: 27px;
-  height: 27px;
-  margin: auto;
-  border: 3px solid #dceadd;
-  border-top-color: #16834a;
+  width: 25px;
+  height: 25px;
+  border: 2px solid #dce7dc;
+  border-top-color: var(--green);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-.note {
-  margin-top: 22px;
-  font-size: 11px;
-  text-align: center;
-  color: #89958b;
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #c5a83f;
+  outline-offset: 3px;
+}
+
+@media (max-width: 520px) {
+  .cheapest-page {
+    padding: 24px 16px 100px;
+  }
+
+  .page-header {
+    gap: 12px;
+    padding-bottom: 22px;
+  }
+
+  .header-symbol {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .header-symbol svg {
+    width: 29px;
+    height: 29px;
+  }
+
+  .page-header h1 {
+    font-size: 27px;
+  }
+
+  .page-header p {
+    font-size: 12px;
+  }
+
+  .section-heading,
+  .results-heading {
+    align-items: flex-start;
+  }
+
+  .section-caption {
+    max-width: 100px;
+    text-align: right;
+  }
+
+  .settings-section {
+    flex-direction: column;
+  }
+
+  .reference-strip {
+    align-items: flex-start;
+  }
+
+  .reference-source {
+    max-width: 110px;
+    line-height: 1.5;
+  }
+
+  .market-item {
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding: 17px 0;
+  }
+
+  .market-price-block {
+    min-width: 104px;
+  }
+
+  .market-price {
+    font-size: 16px;
+  }
+
+  .market-details h3 {
+    font-size: 13px;
+  }
+
+  .market-meta {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 360px) {
+  .market-item {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .market-price-block {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    justify-items: start;
+    align-items: baseline;
+    column-gap: 5px;
+    margin-top: 8px;
+    text-align: left;
+  }
+
+  .market-price {
+    margin: 0;
+  }
+
+  .price-label,
+  .price-unit {
+    display: none;
+  }
+
+  .route-link {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>
