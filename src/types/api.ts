@@ -1,3 +1,4 @@
+
 // ========================================
 // MURAH API CONTRACT - TYPESCRIPT TYPES
 // ========================================
@@ -53,9 +54,12 @@ export interface PriceSummary {
 // DATA PASAR
 // ========================================
 
-export type MarketType = 'TRADITIONAL' | 'CHEAP_MARKET' | 'STORE' | 'SUPERMARKET'
+export type MarketType =
+  | 'TRADITIONAL'
+  | 'CHEAP_MARKET'
+  | 'STORE'
+  | 'SUPERMARKET'
 
-// Harga komoditas pada popup Peta
 export interface NearbyMarketPrice {
   commodityId: number
   name: string
@@ -64,7 +68,6 @@ export interface NearbyMarketPrice {
   source: PriceSource
 }
 
-// Data pasar dari GET /markets/nearby
 export interface Market {
   id: number
   name: string
@@ -79,7 +82,7 @@ export interface Market {
 }
 
 // ========================================
-// STATUS DAN DATA KEGIATAN PASAR MURAH
+// DATA KEGIATAN PASAR MURAH
 // ========================================
 
 export type EventStatus = 'ONGOING' | 'UPCOMING' | 'ENDED'
@@ -106,7 +109,7 @@ export interface CreateReport {
 }
 
 // ========================================
-// PARAMETER PENCARIAN PASAR TERDEKAT
+// PARAMETER PASAR TERDEKAT
 // ========================================
 
 export interface NearbyMarketParams {
