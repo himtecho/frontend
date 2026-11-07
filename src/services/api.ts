@@ -10,6 +10,15 @@ import type {
   CreateReport
 } from '../types/api'
 
+import {
+  mockPriceSummary,
+  mockMarkets,
+  mockEvents
+} from '../data/mock'
+
+// Mode simulasi atau backend asli
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
+
 // Alamat backend MURAH
 const api = axios.create({
   baseURL:
@@ -26,7 +35,22 @@ const api = axios.create({
 // ========================================
 
 // GET /prices/summary
-export async function getPriceSummary() {
+export async function getPriceSummary(): Promise<PriceSummary> {
+  if (USE_MOCK) {
+    const sortedItems = [...mockPriceSummary.items]
+
+    return {
+      ...mockPriceSummary,
+      topRisers: sortedItems
+        .filter(item => item.changePercent > 0)
+        .sort((a, b) => b.changePercent - a.changePercent),
+
+      topFallers: sortedItems
+        .filter(item => item.changePercent < 0)
+        .sort((a, b) => a.changePercent - b.changePercent)
+    }
+  }
+
   const response = await api.get<ApiResponse<PriceSummary>>(
     '/prices/summary'
   )
@@ -37,7 +61,29 @@ export async function getPriceSummary() {
 // GET /markets/nearby?lat&lon&limit
 export async function getNearbyMarkets(
   params: NearbyMarketParams
-) {
+): Promise<Market[]> {
+  if (USE_MOCK) {
+    let markets = [...mockMarkets]
+
+    if (params.type?.length) {
+      markets = markets.filter(market =>
+        params.type!.includes(market.type)
+      )
+    }
+
+    if (params.radius !== undefined) {
+      markets = markets.filter(
+        market => market.distanceKm <= params.radius!
+      )
+    }
+
+    if (params.limit !== undefined) {
+      markets = markets.slice(0, params.limit)
+    }
+
+    return markets
+  }
+
   const response = await api.get<ApiResponse<Market[]>>(
     '/markets/nearby',
     { params }
@@ -54,7 +100,23 @@ export async function getEvents(params: {
   lon?: number
   radius?: number
   limit?: number
-} = {}) {
+} = {}): Promise<MarketEvent[]> {
+  if (USE_MOCK) {
+    let events = [...mockEvents]
+
+    if (params.status && params.status !== 'ALL') {
+      events = events.filter(
+        event => event.status === params.status
+      )
+    }
+
+    if (params.limit !== undefined) {
+      events = events.slice(0, params.limit)
+    }
+
+    return events
+  }
+
   const response = await api.get<ApiResponse<MarketEvent[]>>(
     '/events',
     { params }
