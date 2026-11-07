@@ -1,4 +1,3 @@
-
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -31,10 +30,7 @@ const {
 } = useFetch(() => getCommodities())
 
 // Nearby market options
-const {
-  data: markets,
-  loading: loadingMarkets,
-} = useFetch(
+const { data: markets, loading: loadingMarkets } = useFetch(
   async (): Promise<Market[]> => {
     if (geoPending.value) return []
 
@@ -69,10 +65,7 @@ watch(commodities, (list) => {
 })
 
 // Selected commodity reference price
-const {
-  data: reference,
-  loading: loadingReference,
-} = useFetch(
+const { data: reference, loading: loadingReference } = useFetch(
   async (): Promise<CommodityDetail | null> => {
     if (commodityId.value === '') return null
     return getCommodityDetail(commodityId.value)
@@ -86,30 +79,21 @@ const MAX_PRICE = 10_000_000
 
 const price = computed(() => Number(priceText.value) || 0)
 
-const priceValid = computed(
-  () => price.value >= MIN_PRICE && price.value <= MAX_PRICE
-)
+const priceValid = computed(() => price.value >= MIN_PRICE && price.value <= MAX_PRICE)
 
 const unit = computed(
   () => commodities.value?.find((item) => item.id === commodityId.value)?.unit ?? ''
 )
 
 const canSubmit = computed(
-  () =>
-    commodityId.value !== '' &&
-    marketId.value !== '' &&
-    priceValid.value &&
-    !submitting.value
+  () => commodityId.value !== '' && marketId.value !== '' && priceValid.value && !submitting.value
 )
 
 // Formatting
-const formatPrice = (value: number) =>
-  `Rp ${value.toLocaleString('id-ID')}`
+const formatPrice = (value: number) => `Rp ${value.toLocaleString('id-ID')}`
 
 const displayPrice = computed(() =>
-  priceText.value
-    ? Number(priceText.value).toLocaleString('id-ID')
-    : ''
+  priceText.value ? Number(priceText.value).toLocaleString('id-ID') : ''
 )
 
 const formattedDistance = (distance: number | null | undefined) => {
@@ -128,9 +112,7 @@ const selectedCommodity = computed(() =>
   commodities.value?.find((item) => item.id === commodityId.value)
 )
 
-const selectedMarket = computed(() =>
-  markets.value?.find((item) => item.id === marketId.value)
-)
+const selectedMarket = computed(() => markets.value?.find((item) => item.id === marketId.value))
 
 function onPriceInput(event: Event) {
   const input = event.target as HTMLInputElement
@@ -205,8 +187,8 @@ function reportAgain() {
         <h1>Laporkan Harga</h1>
 
         <p class="intro">
-          Temukan harga sembako di pasar? Bagikan informasi harga agar
-          warga lain dapat membandingkan harga dengan lebih mudah.
+          Temukan harga sembako di pasar? Bagikan informasi harga agar warga lain dapat
+          membandingkan harga dengan lebih mudah.
         </p>
       </header>
 
@@ -231,8 +213,8 @@ function reportAgain() {
         <h2>Terima kasih sudah berbagi!</h2>
 
         <p>
-          Informasi harga yang kamu kirim telah diterima.
-          Kontribusimu membantu warga mendapatkan gambaran harga pangan.
+          Informasi harga yang kamu kirim telah diterima. Kontribusimu membantu warga mendapatkan
+          gambaran harga pangan.
         </p>
 
         <div v-if="selectedCommodity" class="success-summary">
@@ -278,21 +260,12 @@ function reportAgain() {
           <label for="commodity">Komoditas</label>
 
           <div class="select-wrapper">
-            <select
-              id="commodity"
-              v-model="commodityId"
-              :disabled="loadingCommodities"
-              required
-            >
+            <select id="commodity" v-model="commodityId" :disabled="loadingCommodities" required>
               <option value="" disabled>
                 {{ loadingCommodities ? 'Memuat komoditas...' : 'Pilih komoditas' }}
               </option>
 
-              <option
-                v-for="item in commodities ?? []"
-                :key="item.id"
-                :value="item.id"
-              >
+              <option v-for="item in commodities ?? []" :key="item.id" :value="item.id">
                 {{ item.name }} ({{ item.unit }})
               </option>
             </select>
@@ -310,15 +283,11 @@ function reportAgain() {
             </svg>
           </div>
 
-          <p v-if="loadingCommodities" class="field-hint">
-            Sedang mengambil daftar komoditas.
-          </p>
+          <p v-if="loadingCommodities" class="field-hint">Sedang mengambil daftar komoditas.</p>
 
           <div v-if="commoditiesError" class="inline-error" role="alert">
             <span>Daftar komoditas gagal dimuat.</span>
-            <button type="button" @click="reloadCommodities">
-              Coba lagi
-            </button>
+            <button type="button" @click="reloadCommodities">Coba lagi</button>
           </div>
 
           <p
@@ -350,11 +319,7 @@ function reportAgain() {
                 }}
               </option>
 
-              <option
-                v-for="market in markets ?? []"
-                :key="market.id"
-                :value="market.id"
-              >
+              <option v-for="market in markets ?? []" :key="market.id" :value="market.id">
                 {{ market.name }} · {{ formattedDistance(market.distanceKm) }}
               </option>
             </select>
@@ -376,17 +341,11 @@ function reportAgain() {
             Sedang mencari pasar di sekitar lokasi.
           </p>
 
-          <p
-            v-else-if="!coords"
-            class="field-hint"
-          >
+          <p v-else-if="!coords" class="field-hint">
             Lokasi perangkat tidak tersedia. Daftar pasar menggunakan titik acuan kota Bandung.
           </p>
 
-          <p
-            v-if="!geoPending && !loadingMarkets && !(markets ?? []).length"
-            class="field-hint"
-          >
+          <p v-if="!geoPending && !loadingMarkets && !(markets ?? []).length" class="field-hint">
             Belum ada pasar dalam radius 5 km dari titik pencarian.
           </p>
 
@@ -446,18 +405,14 @@ function reportAgain() {
             <span class="reference-dot"></span>
             <div>
               <span class="reference-label">Harga acuan kota</span>
-              <strong>
-                {{ formatPrice(reference.price) }}/{{ reference.unit }}
-              </strong>
+              <strong> {{ formatPrice(reference.price) }}/{{ reference.unit }} </strong>
               <span class="source-label">
                 {{ reference.sourceLabel }}
               </span>
             </div>
           </div>
 
-          <p v-else-if="commodityId !== ''" class="field-hint">
-            Harga acuan kota belum tersedia.
-          </p>
+          <p v-else-if="commodityId !== ''" class="field-hint">Harga acuan kota belum tersedia.</p>
 
           <p id="price-hint" class="field-hint">
             Masukkan harga sesuai satuan komoditas yang dipilih.
@@ -469,15 +424,10 @@ function reportAgain() {
             class="validation-error"
             role="alert"
           >
-            Harga harus antara {{ formatPrice(MIN_PRICE) }} dan
-            {{ formatPrice(MAX_PRICE) }}.
+            Harga harus antara {{ formatPrice(MIN_PRICE) }} dan {{ formatPrice(MAX_PRICE) }}.
           </p>
 
-          <p
-            v-else-if="priceValid && priceText"
-            id="price-validation"
-            class="validation-success"
-          >
+          <p v-else-if="priceValid && priceText" id="price-validation" class="validation-success">
             Harga yang dilaporkan: {{ formatPrice(price) }}
           </p>
         </div>
@@ -501,11 +451,7 @@ function reportAgain() {
         </div>
 
         <!-- Submit -->
-        <button
-          type="submit"
-          class="button button-primary submit-button"
-          :disabled="!canSubmit"
-        >
+        <button type="submit" class="button button-primary submit-button" :disabled="!canSubmit">
           <svg
             v-if="submitting"
             class="button-loader"
@@ -552,8 +498,8 @@ function reportAgain() {
           </svg>
 
           <p>
-            Laporan dikirim anonim. Harga yang jauh dari harga acuan
-            akan ditolak untuk menjaga kualitas informasi.
+            Laporan dikirim anonim. Harga yang jauh dari harga acuan akan ditolak untuk menjaga
+            kualitas informasi.
           </p>
         </div>
       </form>
