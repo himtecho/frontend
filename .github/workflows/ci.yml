@@ -1,0 +1,122 @@
+name: CI (Pull Request)
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  branch-status:
+    name: Branch up to date
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout pull request branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Fetch latest main
+        run: git fetch --no-tags origin main
+
+      - name: Check pull request branch includes main
+        run: |
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Pull request branch includes the latest main commit."
+            exit 0
+          fi
+
+          echo "Pull request branch is behind main. Update it with the latest main changes before merging."
+          echo "Run: gh pr update-branch ${{ github.event.pull_request.number }}"
+          exit 1
+
+  format:
+    name: Prettier
+    needs: branch-status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check formatting
+        run: npx --yes prettier@3 --check .
+
+  backend:
+    name: Backend (Express + Prisma)
+    needs: branch-status
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pasar_murah_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pasar_murah_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/pasar_murah_test
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Push schema to test database
+        run: npx prisma db push --skip-generate
+
+      - name: Run tests
+        run: npm test --if-present
+
+  frontend:
+    name: Frontend (Vue)
+    needs: branch-status
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build
