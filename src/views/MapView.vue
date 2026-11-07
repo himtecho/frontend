@@ -1,26 +1,19 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import MarketMap from '../components/MarketMap.vue'
+import { useFetch } from '../composables/useFetch'
+import { DEFAULT_CENTER, useGeolocation } from '../composables/useGeolocation'
+import { districts } from '../data/districts'
 import { getNearbyMarkets } from '../services/api'
 import type { Market, MarketType } from '../types/api'
 
-const fallbackLocation = {
-  lat: -6.9175,
-  lon: 107.6191,
-}
-
-const latitude = ref(fallbackLocation.lat)
-const longitude = ref(fallbackLocation.lon)
-
-const markets = ref<Market[]>([])
-const selectedMarket = ref<Market | null>(null)
+const { coords, status, label, needsManualPick, ensure, request, setManual } = useGeolocation()
+onMounted(ensure)
 
 const radius = ref(5)
 const selectedTypes = ref<MarketType[]>([])
-
-const loading = ref(false)
-const errorMessage = ref('')
-const locationMessage = ref('Sedang mendeteksi lokasi...')
+const selectedMarket = ref<Market | null>(null)
+const districtIndex = ref<number | ''>('')
 
 const marketTypes: { label: string; value: MarketType }[] = [
   { label: 'Pasar tradisional', value: 'TRADITIONAL' },
@@ -29,52 +22,67 @@ const marketTypes: { label: string; value: MarketType }[] = [
   { label: 'Supermarket', value: 'SUPERMARKET' },
 ]
 
-async function loadMarkets() {
-  loading.value = true
-  errorMessage.value = ''
-  selectedMarket.value = null
+// Keep the picker visible after a district is chosen so it can be changed again
+const showPicker = computed(() => needsManualPick.value || status.value === 'manual')
+const origin = computed(() => coords.value ?? DEFAULT_CENTER)
+const geoPending = computed(() => status.value === 'idle' || status.value === 'loading')
 
-  try {
-    const params: {
-      lat: number
-      lon: number
-      radius: number
-      limit: number
-      type?: MarketType[]
-    } = {
-      lat: latitude.value,
-      lon: longitude.value,
+// Refetches automatically when location, location status, radius or type filter changes
+const {
+  data,
+  loading,
+  error: errorMessage,
+  reload,
+} = useFetch(
+  async (): Promise<Market[]> => {
+    if (geoPending.value) return [] // wait for the location result before calling the API
+    return getNearbyMarkets({
+      lat: origin.value.lat,
+      lon: origin.value.lon,
       radius: radius.value,
       limit: 20,
-    }
+      ...(selectedTypes.value.length ? { type: [...selectedTypes.value] } : {}),
+    })
+  },
+  { watch: [coords, status, radius, selectedTypes] }
+)
 
-    if (selectedTypes.value.length > 0) {
-      params.type = [...selectedTypes.value]
-    }
+const markets = computed(() => data.value ?? [])
 
-    markets.value = await getNearbyMarkets(params)
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : 'Gagal memuat data pasar. Silakan coba lagi.'
-  } finally {
-    loading.value = false
+// Close the detail card whenever a new result set arrives
+watch(data, () => {
+  selectedMarket.value = null
+})
+
+const locationMessage = computed(() => {
+  switch (status.value) {
+    case 'granted':
+      return 'Menampilkan pasar di sekitar lokasimu.'
+    case 'manual':
+      return `Menampilkan pasar di sekitar ${label.value}.`
+    case 'denied':
+    case 'unavailable':
+      return 'Lokasi tidak tersedia. Menampilkan pasar di pusat kota Bandung.'
+    default:
+      return 'Sedang mendeteksi lokasi...'
   }
+})
+
+function pickDistrict() {
+  if (districtIndex.value === '') return
+  const d = districts[districtIndex.value]
+  setManual({ lat: d.lat, lon: d.lon }, d.name)
 }
 
 function toggleType(type: MarketType) {
-  if (selectedTypes.value.includes(type)) {
-    selectedTypes.value = selectedTypes.value.filter((item) => item !== type)
-  } else {
-    selectedTypes.value = [...selectedTypes.value, type]
-  }
-
-  loadMarkets()
+  selectedTypes.value = selectedTypes.value.includes(type)
+    ? selectedTypes.value.filter((item) => item !== type)
+    : [...selectedTypes.value, type]
 }
 
 function resetFilters() {
   radius.value = 5
   selectedTypes.value = []
-  loadMarkets()
 }
 
 function formatMarketType(type: MarketType) {
@@ -84,47 +92,14 @@ function formatMarketType(type: MarketType) {
     STORE: 'Toko',
     SUPERMARKET: 'Supermarket',
   }
-
   return labels[type]
 }
 
-function formatPrice(price: number) {
-  return `Rp ${price.toLocaleString('id-ID')}`
-}
+const formatPrice = (price: number) => `Rp ${price.toLocaleString('id-ID')}`
 
 function selectMarket(market: Market) {
   selectedMarket.value = market
 }
-
-function detectLocation() {
-  if (!navigator.geolocation) {
-    locationMessage.value = 'Lokasi tidak didukung browser. Menampilkan pasar di Bandung.'
-    loadMarkets()
-    return
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      latitude.value = position.coords.latitude
-      longitude.value = position.coords.longitude
-      locationMessage.value = 'Menampilkan pasar di sekitar lokasimu.'
-      loadMarkets()
-    },
-    () => {
-      locationMessage.value = 'Lokasi tidak tersedia. Menampilkan pasar di sekitar Bandung.'
-      loadMarkets()
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 300000,
-    }
-  )
-}
-
-onMounted(() => {
-  detectLocation()
-})
 </script>
 
 <template>
@@ -139,7 +114,21 @@ onMounted(() => {
       <div class="location-info">
         <span class="location-icon">⌖</span>
         <span>{{ locationMessage }}</span>
+        <button v-if="showPicker" type="button" class="reset-button" @click="request">
+          Pakai lokasiku
+        </button>
       </div>
+
+      <select
+        v-if="showPicker && districts.length"
+        v-model="districtIndex"
+        class="district-picker"
+        aria-label="Pilih kecamatan"
+        @change="pickDistrict"
+      >
+        <option value="" disabled>Pilih kecamatan</option>
+        <option v-for="(d, i) in districts" :key="d.name" :value="i">{{ d.name }}</option>
+      </select>
     </header>
 
     <section class="filter-card">
@@ -155,7 +144,7 @@ onMounted(() => {
       <div class="filter-group">
         <label for="radius">Jarak pencarian</label>
 
-        <select id="radius" v-model.number="radius" @change="loadMarkets">
+        <select id="radius" v-model.number="radius">
           <option :value="1">1 km</option>
           <option :value="3">3 km</option>
           <option :value="5">5 km</option>
@@ -201,7 +190,7 @@ onMounted(() => {
         <span class="status-icon">!</span>
         <h3>Belum berhasil memuat data</h3>
         <p>{{ errorMessage }}</p>
-        <button class="primary-button" @click="loadMarkets">Coba lagi</button>
+        <button class="primary-button" @click="reload">Coba lagi</button>
       </div>
 
       <div v-else-if="markets.length === 0" class="status-card">

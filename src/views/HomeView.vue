@@ -82,7 +82,7 @@
 
     <!-- BANNER PASAR MURAH -->
     <section class="promo">
-      <p class="promo-tag">PROGRAM PASAR MURAH</p>
+      <p class="promo-tag">PASAR TERMURAH</p>
       <h2>Belanja hemat, kebutuhan tetap terpenuhi!</h2>
       <p>Temukan jadwal pasar murah dan kesempatan mendapatkan sembako dengan harga terjangkau.</p>
       <button type="button" @click="goToSchedule">Lihat Jadwal Pasar Murah</button>

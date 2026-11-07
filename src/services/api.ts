@@ -1,27 +1,56 @@
 import axios from 'axios'
+import type { AxiosError, AxiosResponse } from 'axios'
 
 import type {
+  ApiError,
   ApiResponse,
-  PriceSummary,
+  Commodity,
+  CommodityDetail,
+  CommodityHistory,
+  CommodityMarkets,
+  CommodityMarketsParams,
+  CreateReport,
+  EventParams,
   Market,
+  MarketDetail,
   MarketEvent,
   NearbyMarketParams,
-  CreateReport,
+  PriceSummary,
+  ReportResult,
 } from '../types/api'
 
-import { mockPriceSummary, mockMarkets, mockEvents } from '../data/mock'
+import { mockEvents, mockMarkets, mockPriceSummary } from '../data/mock'
 
-// Mode simulasi atau backend asli
+// Mock mode (summary, nearby markets and events only) or the real backend
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
-// Alamat backend MURAH
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
   timeout: 10000,
 })
+
+// Turn any failure into a stable ApiError: { code, message, status, details }
+// so views can branch on error.code (VALIDATION_ERROR, PRICE_OUT_OF_RANGE, RATE_LIMITED, ...)
+api.interceptors.response.use(
+  (res) => res,
+  (err: AxiosError<{ error?: { code?: string; message?: string; details?: unknown[] } }>) => {
+    const e = err.response?.data?.error
+    const apiError: ApiError = {
+      code: e?.code ?? 'NETWORK_ERROR',
+      message: e?.message ?? 'Gagal terhubung ke server',
+      status: err.response?.status,
+      details: e?.details ?? [],
+    }
+    return Promise.reject(apiError)
+  }
+)
+
+export function isApiError(e: unknown): e is ApiError {
+  return typeof e === 'object' && e !== null && 'code' in e && 'message' in e
+}
+
+const unwrap = <T>(res: AxiosResponse<ApiResponse<T>>): T => res.data.data
 
 // ========================================
 // BERANDA
@@ -30,78 +59,52 @@ const api = axios.create({
 // GET /prices/summary
 export async function getPriceSummary(): Promise<PriceSummary> {
   if (USE_MOCK) {
-    const sortedItems = [...mockPriceSummary.items]
-
+    const items = [...mockPriceSummary.items]
     return {
       ...mockPriceSummary,
-      topRisers: sortedItems
-        .filter((item) => item.changePercent > 0)
-        .sort((a, b) => b.changePercent - a.changePercent),
-
-      topFallers: sortedItems
-        .filter((item) => item.changePercent < 0)
-        .sort((a, b) => a.changePercent - b.changePercent),
+      topRisers: items
+        .filter((i) => i.changePercent > 0)
+        .sort((a, b) => b.changePercent - a.changePercent)
+        .slice(0, 2),
+      topFallers: items
+        .filter((i) => i.changePercent < 0)
+        .sort((a, b) => a.changePercent - b.changePercent)
+        .slice(0, 2),
     }
   }
-
-  const response = await api.get<ApiResponse<PriceSummary>>('/prices/summary')
-
-  return response.data.data
+  return unwrap(await api.get<ApiResponse<PriceSummary>>('/prices/summary'))
 }
 
-// GET /markets/nearby?lat&lon&limit
+// GET /markets/nearby?lat&lon&radius&type&limit
 export async function getNearbyMarkets(params: NearbyMarketParams): Promise<Market[]> {
   if (USE_MOCK) {
     let markets = [...mockMarkets]
-
-    if (params.type?.length) {
-      markets = markets.filter((market) => params.type!.includes(market.type))
-    }
-
-    if (params.radius !== undefined) {
-      markets = markets.filter((market) => market.distanceKm <= params.radius!)
-    }
-
-    if (params.limit !== undefined) {
-      markets = markets.slice(0, params.limit)
-    }
-
+    if (params.type?.length) markets = markets.filter((m) => params.type!.includes(m.type))
+    if (params.radius !== undefined) markets = markets.filter((m) => m.distanceKm <= params.radius!)
+    if (params.limit !== undefined) markets = markets.slice(0, params.limit)
     return markets
   }
-
-  const response = await api.get<ApiResponse<Market[]>>('/markets/nearby', { params })
-
-  return response.data.data
+  // Backend expects type=TRADITIONAL,STORE (comma separated), not type[]=...
+  const query = { ...params, type: params.type?.length ? params.type.join(',') : undefined }
+  return unwrap(await api.get<ApiResponse<Market[]>>('/markets/nearby', { params: query }))
 }
 
 // GET /events?range&status&lat&lon&radius&limit
-export async function getEvents(
-  params: {
-    range?: 'week' | 'month'
-    status?: 'ONGOING' | 'UPCOMING' | 'ALL'
-    lat?: number
-    lon?: number
-    radius?: number
-    limit?: number
-  } = {}
-): Promise<MarketEvent[]> {
+export async function getEvents(params: EventParams = {}): Promise<MarketEvent[]> {
   if (USE_MOCK) {
     let events = [...mockEvents]
-
-    if (params.status && params.status !== 'ALL') {
-      events = events.filter((event) => event.status === params.status)
-    }
-
-    if (params.limit !== undefined) {
-      events = events.slice(0, params.limit)
-    }
-
+    if (params.status && params.status !== 'ALL')
+      events = events.filter((e) => e.status === params.status)
+    else if (!params.status) events = events.filter((e) => e.status !== 'ENDED') // contract default
+    if (params.limit !== undefined) events = events.slice(0, params.limit)
     return events
   }
+  return unwrap(await api.get<ApiResponse<MarketEvent[]>>('/events', { params }))
+}
 
-  const response = await api.get<ApiResponse<MarketEvent[]>>('/events', { params })
-
-  return response.data.data
+// GET /events/:id
+export async function getEventDetail(id: number | string): Promise<MarketEvent> {
+  return unwrap(await api.get<ApiResponse<MarketEvent>>(`/events/${id}`))
 }
 
 // ========================================
@@ -109,37 +112,33 @@ export async function getEvents(
 // ========================================
 
 // GET /commodities
-export async function getCommodities() {
-  const response = await api.get('/commodities')
-  return response.data.data
+export async function getCommodities(): Promise<Commodity[]> {
+  return unwrap(await api.get<ApiResponse<Commodity[]>>('/commodities'))
 }
 
 // GET /commodities/:id
-export async function getCommodityDetail(id: string) {
-  const response = await api.get(`/commodities/${id}`)
-  return response.data.data
+export async function getCommodityDetail(id: number | string): Promise<CommodityDetail> {
+  return unwrap(await api.get<ApiResponse<CommodityDetail>>(`/commodities/${id}`))
 }
 
 // GET /commodities/:id/history?days=7|30
-export async function getCommodityHistory(id: string, days: 7 | 30 = 7) {
-  const response = await api.get(`/commodities/${id}/history`, { params: { days } })
-
-  return response.data.data
+export async function getCommodityHistory(
+  id: number | string,
+  days: 7 | 30 = 7
+): Promise<CommodityHistory> {
+  return unwrap(
+    await api.get<ApiResponse<CommodityHistory>>(`/commodities/${id}/history`, { params: { days } })
+  )
 }
 
-// GET /commodities/:id/markets
+// GET /commodities/:id/markets?lat&lon&radius&limit
 export async function getCommodityMarkets(
-  id: string,
-  params: {
-    lat: number
-    lon: number
-    radius?: number
-    limit?: number
-  }
-) {
-  const response = await api.get(`/commodities/${id}/markets`, { params })
-
-  return response.data.data
+  id: number | string,
+  params: CommodityMarketsParams = {}
+): Promise<CommodityMarkets> {
+  return unwrap(
+    await api.get<ApiResponse<CommodityMarkets>>(`/commodities/${id}/markets`, { params })
+  )
 }
 
 // ========================================
@@ -147,19 +146,17 @@ export async function getCommodityMarkets(
 // ========================================
 
 // GET /markets/:id
-export async function getMarketDetail(id: string) {
-  const response = await api.get(`/markets/${id}`)
-  return response.data.data
+export async function getMarketDetail(id: number | string): Promise<MarketDetail> {
+  return unwrap(await api.get<ApiResponse<MarketDetail>>(`/markets/${id}`))
 }
 
 // ========================================
 // LAPORAN HARGA
 // ========================================
 
-// POST /reports
-export async function submitReport(data: CreateReport) {
-  const response = await api.post('/reports', data)
-  return response.data
+// POST /reports  (errors: 400 VALIDATION_ERROR, 422 PRICE_OUT_OF_RANGE, 429 RATE_LIMITED)
+export async function submitReport(data: CreateReport): Promise<ReportResult> {
+  return unwrap(await api.post<ApiResponse<ReportResult>>('/reports', data))
 }
 
 // ========================================
@@ -168,8 +165,7 @@ export async function submitReport(data: CreateReport) {
 
 // GET /health
 export async function checkBackend() {
-  const response = await api.get('/health')
-  return response.data
+  return unwrap(await api.get<ApiResponse<{ status: string }>>('/health'))
 }
 
 export default api
