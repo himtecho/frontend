@@ -14,11 +14,7 @@ import { useOnline } from '../composables/useOnline'
 import { describeError, getMarketDetail, isApiError } from '../services/api'
 import type { MarketType } from '../types/api'
 
-type MarketIcon =
-  | 'market-traditional'
-  | 'market-cheap'
-  | 'market-store'
-  | 'market-supermarket'
+type MarketIcon = 'market-traditional' | 'market-cheap' | 'market-store' | 'market-supermarket'
 
 const TYPE_META: Record<MarketType, { label: string; icon: MarketIcon }> = {
   TRADITIONAL: { label: 'Pasar Tradisional', icon: 'market-traditional' },
@@ -173,7 +169,8 @@ const initial = (name: string) => name.trim().charAt(0).toUpperCase()
                 <span class="price-body">
                   <span class="price-name">{{ p.name }}</span>
                   <span class="price-meta">
-                    per {{ p.unit }}<template v-if="formatShortDate(p.date)">
+                    per {{ p.unit
+                    }}<template v-if="formatShortDate(p.date)">
                       · {{ formatShortDate(p.date) }}</template
                     >
                   </span>
