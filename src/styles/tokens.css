@@ -1,0 +1,99 @@
+/* HargaPangan design tokens. Contrast ratios checked against --paper / --surface. */
+:root {
+  /* color: surfaces and text */
+  --paper: #f7f5ef;
+  --surface: #ffffff;
+  --ink: #1b2b22; /* 13.6:1 on paper */
+  --ink-muted: #5b6b61; /* 5.2:1 on paper */
+  --line: #e3e0d5; /* hairline dividers (decorative) */
+  --line-strong: #7f8a83; /* input/control borders, >= 3:1 */
+
+  /* color: brand and the single accent */
+  --brand: #14663a; /* 6.4:1 on paper */
+  --brand-ink: #0e4a2a;
+  --brand-tint: #e6f1e9;
+  --accent: #f2b01e; /* turmeric: only the "Termurah" highlight */
+  --accent-ink: #3d2a00; /* 7.2:1 on accent */
+
+  /* color: trend (always paired with an arrow icon and a signed value) */
+  --up: #c2410c; /* 4.8:1 on paper */
+  --down: #15803d; /* 4.6:1 on paper */
+  --stable: #5f6672; /* 5.3:1 on paper */
+
+  /* color: data source badges (text on tint >= 5.5:1) */
+  --src-pihps-ink: #1d4ed8;
+  --src-pihps-tint: #e3eafb;
+  --src-seed-ink: #92400e;
+  --src-seed-tint: #fbebc8;
+  --src-citizen-ink: #166534;
+  --src-citizen-tint: #ddf0e3;
+
+  /* color: status */
+  --danger: #b42318;
+  --danger-tint: #fbe9e7;
+  --neutral-tint: #ece9de;
+  --skeleton-base: #ece9de;
+  --skeleton-shine: #f5f3ec;
+
+  /* font families (swap --font-numeric if tabular figures look uneven) */
+  --font-ui: 'Plus Jakarta Sans', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-numeric: var(--font-ui);
+
+  /* type scale (mobile) */
+  --fs-display: 32px;
+  --lh-display: 36px;
+  --fs-title: 22px;
+  --lh-title: 28px;
+  --fs-heading: 17px;
+  --lh-heading: 24px;
+  --fs-body: 15px;
+  --lh-body: 22px;
+  --fs-caption: 13px;
+  --lh-caption: 18px;
+  --fs-micro: 11px;
+  --lh-micro: 16px;
+  --fw-regular: 400;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* spacing (4px base) */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+
+  /* radius: one scale only */
+  --radius-sm: 8px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+
+  /* elevation: borders first, one soft shadow for bottom nav and map sheet */
+  --shadow-raised: 0 -1px 0 var(--line), 0 -6px 18px rgb(27 43 34 / 0.08);
+
+  /* z-index */
+  --z-header: 10;
+  --z-sheet: 20;
+  --z-nav: 30;
+  --z-toast: 40;
+
+  /* motion (functional only) */
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* layout */
+  --gutter: 16px;
+  --content-max: 720px;
+  --tap: 44px;
+  --nav-height: 64px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --gutter: 24px;
+  }
+}

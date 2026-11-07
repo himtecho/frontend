@@ -1,201 +1,530 @@
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
+import { getPriceSummary, getNearbyMarkets, describeError, isMockMode } from '../services/api'
+import AppButton from '../components/AppButton.vue'
+import AppHeader from '../components/AppHeader.vue'
+import AppIcon from '../components/Appicon.vue'
+import EmptyState from '../components/EmptyState.vue'
+import ErrorState from '../components/ErrorState.vue'
+import InlineAlert from '../components/InlineAlert.vue'
+import MarketRow from '../components/MarketRow.vue'
+import PriceRow from '../components/PriceRow.vue'
+import SkeletonRow from '../components/SkeletonRow.vue'
+import TrendBadge from '../components/TrendBadge.vue'
+import { useAsync } from '../composables/useAsync'
+import { useLocation } from '../composables/useLocation'
+import { useOnline } from '../composables/useOnline'
+import { formatUpdatedAt } from '../utils/format'
+
+const RADIUS_KM = 5
+
+const online = useOnline()
+const { coords, status, request, init } = useLocation()
+
+const summary = useAsync(() => getPriceSummary())
+
+const nearby = useAsync(() => {
+  if (!coords.value) {
+    return Promise.resolve([])
+  }
+
+  return getNearbyMarkets({
+    lat: coords.value.lat,
+    lon: coords.value.lon,
+    radius: RADIUS_KM,
+    limit: 3,
+  })
+})
+
+// ---- price board ----
+const query = ref('')
+const normalizedQuery = computed(() => query.value.trim().toLowerCase())
+const items = computed(() => summary.data.value?.items ?? [])
+const filteredItems = computed(() =>
+  normalizedQuery.value
+    ? items.value.filter((i) => i.name.toLowerCase().includes(normalizedQuery.value))
+    : items.value
+)
+const updatedLabel = computed(() => {
+  const updatedAt = summary.data.value?.updatedAt
+
+  return updatedAt ? formatUpdatedAt(updatedAt) : ''
+})
+const boardLoading = computed(() => summary.loading.value && !summary.data.value)
+
+// ---- nearby markets ----
+// Mock mode has no real location, so it loads straight away.
+const shownMarkets = computed(() => (nearby.data.value ?? []).slice(0, 3)) // Beranda shows 3 even if the API returns more
+const hasLocation = computed(() => isMockMode || coords.value !== null)
+const marketsLoading = computed(
+  () =>
+    (hasLocation.value && nearby.loading.value && !nearby.data.value) ||
+    (!hasLocation.value && status.value === 'loading')
+)
+
+const locationNotice = computed(() => {
+  if (status.value === 'denied')
+    return {
+      title: 'Izin lokasi ditolak',
+      text: 'Aktifkan izin lokasi di pengaturan browser, atau pilih lokasimu secara manual di halaman Peta.',
+      canRequest: false,
+    }
+  if (status.value === 'unavailable')
+    return {
+      title: 'Lokasi tidak tersedia',
+      text: 'Perangkatmu belum bisa menentukan lokasi. Pilih lokasi secara manual di halaman Peta.',
+      canRequest: true,
+    }
+  return {
+    title: 'Lokasi belum diaktifkan',
+    text: 'Izinkan akses lokasi agar pasar dan toko terdekat bisa ditampilkan.',
+    canRequest: true,
+  }
+})
+
+onMounted(() => {
+  summary.run()
+  init()
+  if (isMockMode) nearby.run()
+})
+watch(coords, (c) => {
+  if (c) nearby.run()
+})
+</script>
+
 <template>
-  <main class="home-view">
-    <!-- SAMBUTAN -->
-    <section class="welcome">
-      <p class="greeting">Selamat datang 👋</p>
-      <h2>Belanja pintar dimulai dari sini.</h2>
-      <p>Pantau harga sembako dan temukan pasar murah di sekitarmu.</p>
-    </section>
+  <div>
+    <AppHeader />
 
-    <!-- PENCARIAN -->
-    <section class="search-section">
-      <input type="text" v-model="searchQuery" placeholder="Cari beras, minyak, telur..." />
-    </section>
+    <main class="page home">
+      <InlineAlert v-if="!online" icon="wifi-off" class="offline">
+        Kamu sedang offline. Data yang tampil mungkin bukan yang terbaru.
+      </InlineAlert>
 
-    <!-- HARGA SEMBAKO -->
-    <section class="prices">
-      <div class="section-heading">
-        <div>
-          <h2>Harga Sembako</h2>
-          <p>Pantau harga kebutuhan pokok hari ini.</p>
-        </div>
-        <span class="mock-label">DATA CONTOH</span>
+      <!-- title and search -->
+      <section class="intro" aria-labelledby="home-title">
+        <h1 id="home-title" class="title">Harga sembako hari ini</h1>
+        <p v-if="updatedLabel" class="updated">{{ updatedLabel }}</p>
+        <p v-else-if="boardLoading" class="updated"><span class="sk-line" aria-hidden="true" /></p>
+      </section>
+
+      <div class="search">
+        <label for="search" class="sr-only">Cari komoditas</label>
+        <AppIcon name="search" :size="20" class="search-icon" />
+        <input
+          id="search"
+          v-model="query"
+          class="search-input"
+          type="search"
+          inputmode="search"
+          autocomplete="off"
+          placeholder="Cari beras, minyak, telur"
+        />
+        <button
+          v-if="query"
+          type="button"
+          class="search-clear"
+          aria-label="Hapus pencarian"
+          @click="query = ''"
+        >
+          <AppIcon name="x" :size="18" />
+        </button>
       </div>
 
-      <p class="updated-time">
-        {{ updatedAt }}
-      </p>
-
-      <div class="price-grid">
-        <p v-if="filteredProducts.length === 0">Komoditas tidak ditemukan.</p>
-
-        <div v-for="product in filteredProducts" :key="product.name" class="price-card">
-          <h3>{{ product.name }}</h3>
-          <h2>{{ formatPrice(product.price) }}</h2>
-          <p>per {{ product.unit }}</p>
+      <!-- price board -->
+      <section class="section" aria-labelledby="board-title">
+        <div class="section-head">
+          <h2 id="board-title" class="section-title">Papan harga</h2>
         </div>
-      </div>
-    </section>
 
-    <!-- PERGERAKAN HARGA -->
-    <section class="movement-section">
-      <h2>Pergerakan Harga Minggu Ini</h2>
-      <p class="section-description">Komoditas dengan perubahan harga terbesar.</p>
+        <div v-if="boardLoading" class="board" aria-busy="true" aria-label="Memuat harga">
+          <SkeletonRow v-for="n in 6" :key="n" variant="price" />
+        </div>
+        <ErrorState
+          v-else-if="summary.error.value && !summary.data.value"
+          :message="describeError(summary.error.value)"
+          @retry="summary.run"
+        />
+        <EmptyState
+          v-else-if="items.length === 0"
+          title="Belum ada data harga"
+          text="Harga hari ini belum tersedia. Coba lagi nanti."
+        />
+        <EmptyState
+          v-else-if="filteredItems.length === 0"
+          :title="`Tidak ada hasil untuk “${query.trim()}”`"
+          text="Periksa ejaan atau coba kata kunci lain."
+        >
+          <AppButton @click="query = ''">Hapus pencarian</AppButton>
+        </EmptyState>
+        <ul v-else class="board">
+          <li v-for="item in filteredItems" :key="item.commodityId" class="board-item">
+            <PriceRow :item="item" />
+          </li>
+        </ul>
+      </section>
 
-      <div class="movement-grid">
-        <div class="movement-card">
-          <h3>🔺 Harga Paling Naik</h3>
-          <div>
-            <p v-for="item in topRisers" :key="item.name">{{ item.name }} — {{ item.change }}%</p>
+      <!-- weekly movement -->
+      <section
+        v-if="boardLoading || summary.data.value"
+        class="section"
+        aria-labelledby="move-title"
+      >
+        <div class="section-head">
+          <h2 id="move-title" class="section-title">Pergerakan minggu ini</h2>
+        </div>
+        <p class="caption">Perubahan harga dibanding 7 hari lalu.</p>
+
+        <div v-if="boardLoading" class="moves" aria-hidden="true">
+          <span class="sk-panel" />
+          <span class="sk-panel" />
+        </div>
+        <div v-else-if="summary.data.value" class="moves">
+          <div class="panel" role="group" aria-labelledby="rise-title">
+            <h3 id="rise-title" class="panel-title">
+              <AppIcon name="arrow-up" :size="16" class="up" />Paling naik
+            </h3>
+            <ul v-if="summary.data.value.topRisers.length">
+              <li v-for="i in summary.data.value.topRisers" :key="i.commodityId">
+                <RouterLink class="move" :to="`/commodity/${i.commodityId}`">
+                  <span class="move-name">{{ i.name }}</span>
+                  <TrendBadge :trend="i.trend" :percent="i.changePercent" />
+                </RouterLink>
+              </li>
+            </ul>
+            <p v-else class="panel-empty">Tidak ada kenaikan berarti</p>
+          </div>
+
+          <div class="panel" role="group" aria-labelledby="fall-title">
+            <h3 id="fall-title" class="panel-title">
+              <AppIcon name="arrow-down" :size="16" class="down" />Paling turun
+            </h3>
+            <ul v-if="summary.data.value.topFallers.length">
+              <li v-for="i in summary.data.value.topFallers" :key="i.commodityId">
+                <RouterLink class="move" :to="`/commodity/${i.commodityId}`">
+                  <span class="move-name">{{ i.name }}</span>
+                  <TrendBadge :trend="i.trend" :percent="i.changePercent" />
+                </RouterLink>
+              </li>
+            </ul>
+            <p v-else class="panel-empty">Tidak ada penurunan berarti</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- nearby markets -->
+      <section class="section" aria-labelledby="nearby-title">
+        <div class="section-head">
+          <h2 id="nearby-title" class="section-title">Pasar terdekat</h2>
+          <RouterLink to="/map" class="section-link"
+            >Lihat peta<AppIcon name="chevron-right" :size="18"
+          /></RouterLink>
+        </div>
+
+        <div
+          v-if="marketsLoading"
+          class="board"
+          aria-busy="true"
+          aria-label="Memuat pasar terdekat"
+        >
+          <SkeletonRow v-for="n in 3" :key="n" variant="market" />
+        </div>
+
+        <div v-else-if="!hasLocation" class="notice">
+          <p class="notice-title">{{ locationNotice.title }}</p>
+          <p class="notice-text">{{ locationNotice.text }}</p>
+          <div class="notice-actions">
+            <AppButton v-if="locationNotice.canRequest" variant="primary" @click="request"
+              >Pakai lokasiku</AppButton
+            >
+            <RouterLink to="/map" class="inline-link">Pilih lokasi di peta</RouterLink>
           </div>
         </div>
 
-        <div class="movement-card">
-          <h3>🔻 Harga Paling Turun</h3>
-          <div>
-            <p v-for="item in topFallers" :key="item.name">{{ item.name }} — {{ item.change }}%</p>
-          </div>
-        </div>
-      </div>
-    </section>
+        <ErrorState
+          v-else-if="nearby.error.value && !nearby.data.value"
+          :message="describeError(nearby.error.value)"
+          @retry="nearby.run"
+        />
 
-    <!-- PASAR TERDEKAT -->
-    <section class="nearby-section">
-      <div class="section-heading">
-        <div>
-          <h2>Pasar Terdekat</h2>
-          <p>Temukan tempat belanja di sekitarmu.</p>
-        </div>
-        <a href="/peta" class="see-more">Lihat peta →</a>
-      </div>
+        <EmptyState
+          v-else-if="nearby.data.value && shownMarkets.length === 0"
+          :title="`Belum ada pasar dalam ${RADIUS_KM} km`"
+          text="Coba cari di peta dengan jarak yang lebih jauh."
+        >
+          <RouterLink to="/map" class="inline-link">Buka peta</RouterLink>
+        </EmptyState>
 
-      <div class="market-list">
-        <div v-for="market in nearbyMarkets" :key="market.id" class="market-item">
-          <div>
-            <h3>{{ market.name }}</h3>
-            <p>{{ market.address }}</p>
-            <p>{{ market.distanceKm }} km</p>
-          </div>
-        </div>
-      </div>
-    </section>
+        <ul v-else-if="nearby.data.value" class="board">
+          <li v-for="m in shownMarkets" :key="m.id" class="board-item">
+            <MarketRow :market="m" />
+          </li>
+        </ul>
+      </section>
 
-    <!-- BANNER PASAR MURAH -->
-    <section class="promo">
-      <p class="promo-tag">PASAR TERMURAH</p>
-      <h2>Belanja hemat, kebutuhan tetap terpenuhi!</h2>
-      <p>Temukan jadwal pasar murah dan kesempatan mendapatkan sembako dengan harga terjangkau.</p>
-      <button type="button" @click="goToSchedule">Lihat Jadwal Pasar Murah</button>
-    </section>
+      <!-- quiet entry to Termurah -->
+      <RouterLink to="/cheapest" class="entry">
+        <AppIcon name="tag" :size="22" class="entry-icon" />
+        <span class="entry-text">Cari harga termurah di sekitarmu</span>
+        <AppIcon name="chevron-right" :size="20" class="entry-chevron" />
+      </RouterLink>
 
-    <!-- JADWAL PASAR MURAH -->
-    <section class="events-section">
-      <h2>Jadwal Pasar Murah</h2>
-      <p class="section-description">Informasi kegiatan pasar murah mendatang.</p>
-
-      <div class="event-card" v-if="upcomingEvent">
-        <h3>{{ upcomingEvent.title }}</h3>
-        <p>{{ upcomingEvent.date }}</p>
-        <p>{{ upcomingEvent.location }}</p>
-      </div>
-
-      <p v-else>Belum ada jadwal pasar murah.</p>
-    </section>
-
-    <!-- CATATAN SUMBER DATA -->
-    <footer class="footer">
-      <p>Harga dapat berasal dari PIHPS, estimasi, atau laporan warga.</p>
-      <p>© 2026 MURAH. Belanja lebih bijak.</p>
-    </footer>
-  </main>
+      <p class="footnote">Harga dapat berasal dari PIHPS, estimasi, atau laporan warga.</p>
+    </main>
+  </div>
 </template>
 
-<script setup lang="ts">
-import { computed, ref } from 'vue'
-
-interface Product {
-  name: string
-  price: number
-  unit: string
-  change: number
+<style scoped>
+.offline {
+  margin-top: var(--space-12);
 }
 
-interface Market {
-  id: number
-  name: string
-  address: string
-  distanceKm: number
+/* intro */
+.intro {
+  padding: var(--space-24) 0 var(--space-16);
+}
+.title {
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
+}
+.updated {
+  margin-top: var(--space-4);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+}
+.sk-line {
+  display: block;
+  width: 160px;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--skeleton-base);
 }
 
-const searchQuery = ref('')
-
-const updatedAt = 'Diperbarui hari ini, 08.30 WIB'
-
-// Data sementara untuk tampilan.
-// Nantinya akan diganti dengan respons API tim.
-const products = ref<Product[]>([
-  { name: 'Beras', price: 15000, unit: 'kg', change: 2.5 },
-  { name: 'Minyak Goreng', price: 18000, unit: 'liter', change: -1.2 },
-  { name: 'Telur Ayam', price: 28000, unit: 'kg', change: 1.8 },
-  { name: 'Gula Pasir', price: 17500, unit: 'kg', change: -0.8 },
-  { name: 'Cabai Merah', price: 45000, unit: 'kg', change: 5.2 },
-  { name: 'Bawang Merah', price: 38000, unit: 'kg', change: -2.1 },
-  { name: 'Bawang Putih', price: 42000, unit: 'kg', change: 0.5 },
-  { name: 'Daging Ayam', price: 36000, unit: 'kg', change: 1.1 },
-])
-
-const nearbyMarkets = ref<Market[]>([
-  {
-    id: 1,
-    name: 'Pasar Contoh 1',
-    address: 'Jl. Merdeka',
-    distanceKm: 1.2,
-  },
-  {
-    id: 2,
-    name: 'Pasar Contoh 2',
-    address: 'Jl. Sudirman',
-    distanceKm: 2.4,
-  },
-  {
-    id: 3,
-    name: 'Pasar Murah Contoh',
-    address: 'Jl. Mawar',
-    distanceKm: 3.1,
-  },
-])
-
-const upcomingEvent = ref({
-  title: 'Pasar Murah Minggu Ini',
-  date: 'Sabtu, 14 November 2026',
-  location: 'Lokasi contoh',
-})
-
-const filteredProducts = computed(() => {
-  return products.value.filter((product) =>
-    product.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
-})
-
-const topRisers = computed(() =>
-  [...products.value]
-    .filter((item) => item.change > 0)
-    .sort((a, b) => b.change - a.change)
-    .slice(0, 3)
-)
-
-const topFallers = computed(() =>
-  [...products.value]
-    .filter((item) => item.change < 0)
-    .sort((a, b) => a.change - b.change)
-    .slice(0, 3)
-)
-
-function formatPrice(price: number) {
-  return 'Rp ' + price.toLocaleString('id-ID')
+/* search */
+.search {
+  position: relative;
+}
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-16);
+  transform: translateY(-50%);
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+.search-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  font-size: 16px; /* 16px stops iOS zooming on focus */
+  line-height: var(--lh-body);
+  appearance: none;
+}
+.search-input::placeholder {
+  color: var(--ink-muted);
+}
+.search-input::-webkit-search-cancel-button {
+  display: none;
+}
+.search-clear {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
 }
 
-function goToSchedule() {
-  window.location.href = '/jadwal'
+/* sections */
+.section {
+  margin-top: var(--space-32);
 }
-</script>
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: var(--tap);
+}
+.section-title {
+  font-size: var(--fs-heading);
+  line-height: var(--lh-heading);
+  font-weight: var(--fw-bold);
+}
+.section-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
+}
+.caption {
+  margin-bottom: var(--space-12);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+}
+
+/* ruled lists: hairlines, two columns from 640px up */
+.board {
+  border-top: 1px solid var(--line);
+}
+.board-item {
+  border-bottom: 1px solid var(--line);
+}
+@media (min-width: 640px) {
+  ul.board {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--space-32);
+    border-top: 0;
+  }
+  ul.board > .board-item:nth-child(-n + 2) {
+    border-top: 1px solid var(--line);
+  }
+}
+
+/* weekly movement */
+.moves {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-12);
+}
+.panel {
+  min-width: 0;
+  padding: var(--space-12);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding-bottom: var(--space-8);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-bold);
+}
+.up {
+  color: var(--up);
+}
+.down {
+  color: var(--down);
+}
+.panel li + li {
+  border-top: 1px solid var(--line);
+}
+.move {
+  display: grid;
+  gap: 2px;
+  min-height: var(--tap);
+  padding: var(--space-8) 0;
+}
+.move-name {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+.panel-empty {
+  padding: var(--space-8) 0;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+}
+.sk-panel {
+  display: block;
+  height: 112px;
+  border-radius: var(--radius-card);
+  background: var(--skeleton-base);
+}
+
+/* location notice */
+.notice {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-16);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.notice-title {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-bold);
+}
+.notice-text {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+}
+.notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+  margin-top: var(--space-12);
+}
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* quiet entry to Termurah */
+.entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 56px;
+  margin-top: var(--space-32);
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.entry:active {
+  background: var(--brand-tint);
+}
+.entry-icon {
+  color: var(--brand);
+}
+.entry-text {
+  flex: 1;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
+}
+.entry-chevron {
+  color: var(--ink-muted);
+}
+
+.footnote {
+  margin-top: var(--space-24);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--ink-muted);
+}
+</style>

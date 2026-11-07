@@ -46,6 +46,8 @@ api.interceptors.response.use(
   }
 )
 
+export const isMockMode = USE_MOCK
+
 export function isApiError(e: unknown): e is ApiError {
   return typeof e === 'object' && e !== null && 'code' in e && 'message' in e
 }
@@ -167,5 +169,23 @@ export async function submitReport(data: CreateReport): Promise<ReportResult> {
 export async function checkBackend() {
   return unwrap(await api.get<ApiResponse<{ status: string }>>('/health'))
 }
+export function describeError(error: unknown): string {
+  if (!isApiError(error)) {
+    return 'Terjadi kesalahan. Silakan coba lagi.'
+  }
 
+  switch (error.code) {
+    case 'NETWORK_ERROR':
+      return 'Tidak bisa terhubung ke server. Periksa koneksi internetmu.'
+
+    case 'RATE_LIMITED':
+      return 'Terlalu banyak permintaan. Coba lagi beberapa saat lagi.'
+
+    case 'NOT_FOUND':
+      return 'Data yang kamu cari tidak ditemukan.'
+
+    default:
+      return error.message || 'Terjadi masalah di server.'
+  }
+}
 export default api
